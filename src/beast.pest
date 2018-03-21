@@ -1,0 +1,106 @@
+/// Values
+
+// Integers
+sign = @{ ("+" | "-")? }
+digit = @{ '0' .. '9' }
+hexdigit = @{
+      digit
+    | 'A' .. 'F'
+    | 'a' .. 'f'
+}
+num = @{ digit ~ ("_"? ~ digit)* }
+hexnum = @{ hexdigit ~ ("_"? ~ hexdigit)* }
+
+unsigned_num = @{ num | "0x" ~ hexnum } // uN
+
+signed_num = @{ sign ~ num | sign ~ "0x" ~ hexnum } // sN
+
+// Strings
+string = @{ "\"" ~ stringelem* ~ "\"" }
+stringelem = @{ stringchar | "\\" ~ hexdigit ~ hexdigit }
+stringchar = @{ !("\\" | "\"") ~ any |  "\\t" | "\\n" | "\\r" | "\\\"" | "\\\'" | "\\\\" | ( "\\u{" ~ hexnum ~ "}" )}
+
+// Identifiers
+func_id = @{ id }
+
+id = @{ "$" ~ idchar+ }
+idchar = @{
+      '0' .. '9'
+    | 'a' .. 'z'
+    | 'A' .. 'Z'
+    | "_"
+}
+
+/// Type Type
+type_t = { u8_t | u16_t | i8_t | i16_t }
+u8_t = @{ "u8" }
+u16_t = @{ "u16" }
+i8_t = @{ "i8" }
+i16_t = @{ "i16" }
+
+/// Atom
+atom_keyword = _{ ":" }
+atom = @{ atom_keyword ~ idchar+ }
+
+/// Literal
+literal = { unsigned_num | signed_num }
+
+/// Functions
+func_keyword = _{ "func" }
+func = { opening_brace ~ func_keyword ~ id ~ instr* ~ closing_brace }
+
+/// Import/Export
+from_keyword = _{ "from" }
+as_keyword = _{ "as" }
+
+import_keyword = _{ "import" }
+import = { opening_brace ~ import_keyword ~ func_id ~ (as_keyword ~ func_id)? ~ from_keyword ~ string ~ closing_brace }
+
+export_keyword = _{ "export" }
+export = { opening_brace ~ export_keyword ~ func_id ~ (as_keyword ~ func_id)? ~ closing_brace }
+
+/// Instructions
+instr = { while_loop | if_cond | plain_instr }
+plain_instr = _{
+    opening_brace ~
+      (
+          call_instr
+          | ret_instr
+      )
+     ~ closing_brace
+}
+
+call_instr_keyword = _{ "call" }
+call_instr = { call_instr_keyword ~ func_id }
+
+ret_instr_keyword = _{ "ret" }
+ret_instr = { ret_instr_keyword }
+
+// While
+while_loop_keyword = _{ "while" }
+while_loop = { opening_brace ~ while_loop_keyword ~ condition ~ instr* ~ closing_brace }
+
+// If
+if_cond_keyword = _{ "if" }
+else_cond_keyword = _{ "else" }
+if_cond = { opening_brace ~ if_cond_keyword ~ condition ~ instr* ~ (opening_brace ~ else_cond_keyword ~ instr* ~ closing_brace)? ~ closing_brace }
+
+// condition
+condition = { opening_brace ~ conditional_func ~ closing_brace }
+conditional_func = _{ positive | zero | not_zero | negative }
+positive = @{ "p" }
+negative = @{ "n" }
+zero = @{ "z" }
+not_zero = @{ "nz" }
+
+/// Misc
+opening_brace = _{ "(" }
+closing_brace = _{ ")" }
+
+comment = _{ multiline_comment | (";;" ~ (!newline ~ any)*) }
+multiline_comment = _{
+    "(;" ~ (!";" ~ !")" ~ any)* ~ ";)"
+}
+newline = _{ "\n" | "\r\n" }
+whitespace = _{ " " | "\t" | newline }
+file = _{ soi ~ import* ~ func* ~ export* ~ eoi }

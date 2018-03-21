@@ -1,0 +1,7 @@
+(import $sqrt from "math")
+
+(func $fake_sqrt
+  (call $fake_sqrt))
+
+(func $main
+  (call $fake_sqrt))

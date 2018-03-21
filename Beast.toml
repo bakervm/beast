@@ -1,0 +1,14 @@
+# This is a configuration file made for testing purposes
+
+[program]
+target = "0.4.0" # the version of the melon library used by the target
+system_id = "__TEST_SYSTEM__"
+mem_pages = 34
+
+[compilation]
+entry_point = "main.beast" # This is also the default
+
+[signals]
+gurgle = 1
+nuke = 2
+fire = 3

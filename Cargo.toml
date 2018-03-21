@@ -1,0 +1,12 @@
+[package]
+name = "beast"
+version = "0.1.0"
+authors = ["Julian Laubstein <contact@julianlaubstein.de>"]
+
+[dependencies]
+pest = "1"
+pest_derive = "1"
+serde = "1"
+serde_derive = "1"
+melon = "^0.4"
+toml = "^0.4"
