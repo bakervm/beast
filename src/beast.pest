@@ -4,16 +4,16 @@
 sign = @{ ("+" | "-")? }
 digit = @{ '0' .. '9' }
 hexdigit = @{
-      digit
-    | 'A' .. 'F'
+    'A' .. 'F'
     | 'a' .. 'f'
+    | digit
 }
 num = @{ digit ~ ("_"? ~ digit)* }
 hexnum = @{ hexdigit ~ ("_"? ~ hexdigit)* }
 
-unsigned_num = @{ num | "0x" ~ hexnum } // uN
+unsigned_num = @{ "0x" ~ hexnum | num } // uN
 
-signed_num = @{ sign ~ num | sign ~ "0x" ~ hexnum } // sN
+signed_num = @{ sign ~ unsigned_num } // sN
 
 // Strings
 string = @{ "\"" ~ stringelem* ~ "\"" }
@@ -22,6 +22,9 @@ stringchar = @{ !("\\" | "\"") ~ any |  "\\t" | "\\n" | "\\r" | "\\\"" | "\\\'" 
 
 // Identifiers
 func_id = @{ id }
+func_alias = @{ func_id }
+
+constant_id = @{ "%" ~ idchar+ }
 
 id = @{ "$" ~ idchar+ }
 idchar = @{
@@ -32,7 +35,7 @@ idchar = @{
 }
 
 /// Type Type
-type_t = { u8_t | u16_t | i8_t | i16_t }
+type_t = _{ u8_t | u16_t | i8_t | i16_t }
 u8_t = @{ "u8" }
 u16_t = @{ "u16" }
 i8_t = @{ "i8" }
@@ -42,8 +45,12 @@ i16_t = @{ "i16" }
 atom_keyword = _{ ":" }
 atom = @{ atom_keyword ~ idchar+ }
 
-/// Literal
+/// Literals
 literal = { unsigned_num | signed_num }
+
+/// Constants
+constant_keyword = _{ "const" }
+constant = { opening_brace ~ constant_keyword ~ constant_id ~ type_t ~ literal ~ closing_brace }
 
 /// Functions
 func_keyword = _{ "func" }
@@ -54,27 +61,84 @@ from_keyword = _{ "from" }
 as_keyword = _{ "as" }
 
 import_keyword = _{ "import" }
-import = { opening_brace ~ import_keyword ~ func_id ~ (as_keyword ~ func_id)? ~ from_keyword ~ string ~ closing_brace }
+import = { opening_brace ~ import_keyword ~ func_id ~ (as_keyword ~ func_alias)? ~ from_keyword ~ string ~ closing_brace }
 
 export_keyword = _{ "export" }
-export = { opening_brace ~ export_keyword ~ func_id ~ (as_keyword ~ func_id)? ~ closing_brace }
+export = { opening_brace ~ export_keyword ~ func_id ~ (as_keyword ~ func_alias)? ~ closing_brace }
 
 /// Instructions
 instr = { while_loop | if_cond | plain_instr }
 plain_instr = _{
     opening_brace ~
       (
-          call_instr
-          | ret_instr
+          push_instr
+          | add
+          | sub
+          | mul
+          | div
+          | shr
+          | shl
+          | and
+          | or
+          | xor
+          | not
+          | neg
+          | neg
+          | inc
+          | dec
+          | call
+          | ret
       )
      ~ closing_brace
 }
 
-call_instr_keyword = _{ "call" }
-call_instr = { call_instr_keyword ~ func_id }
+push_instr_keyword = _{ "push" }
+push_instr = { push_instr_keyword ~ type_t ~ (literal | constant_id) }
 
-ret_instr_keyword = _{ "ret" }
-ret_instr = { ret_instr_keyword }
+add_keyword = _{ "add" }
+add = { add_keyword ~ type_t }
+
+sub_keyword = _{ "sub" }
+sub = { sub_keyword ~ type_t }
+
+mul_keyword = _{ "mul" }
+mul = { mul_keyword ~ type_t }
+
+div_keyword = _{ "div" }
+div = { div_keyword ~ type_t }
+
+shr_keyword = _{ "shr" }
+shr = { shr_keyword ~ type_t }
+
+shl_keyword = _{ "shl" }
+shl = { shl_keyword ~ type_t }
+
+and_keyword = _{ "and" }
+and = { and_keyword ~ type_t }
+
+or_keyword = _{ "or" }
+or = { or_keyword ~ type_t }
+
+xor_keyword = _{ "xor" }
+xor = { xor_keyword ~ type_t }
+
+not_keyword = _{ "not" }
+not = { not_keyword ~ type_t }
+
+neg_keyword = _{ "neg" }
+neg = { neg_keyword ~ type_t }
+
+inc_keyword = _{ "inc" }
+inc = { inc_keyword ~ type_t }
+
+dec_keyword = _{ "dec" }
+dec = { dec_keyword ~ type_t }
+
+call_keyword = _{ "call" }
+call = { call_keyword ~ func_id }
+
+ret_keyword = _{ "ret" }
+ret = { ret_keyword }
 
 // While
 while_loop_keyword = _{ "while" }
@@ -103,4 +167,5 @@ multiline_comment = _{
 }
 newline = _{ "\n" | "\r\n" }
 whitespace = _{ " " | "\t" | newline }
-file = _{ soi ~ import* ~ func* ~ export* ~ eoi }
+file_field = _{ import | constant | func | export }
+file = _{ soi ~ file_field* ~ eoi }

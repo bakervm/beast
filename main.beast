@@ -1,7 +1,18 @@
-(import $sqrt from "math")
+(import $sqrt as $native_sqrt from "math")
+
+(const %some_const u8 1)
 
 (func $fake_sqrt
-  (call $fake_sqrt))
+  (push u8 0xFF)
+  (push u8 -0xFF)
+  (push u8 -1)
+  (push u8 21)
+  (push u8 %some_const)
+  (add u8)
+  (sub u16)
+  (mul u8)
+  (div u8)
+  (call $native_sqrt))
 
 (func $main
   (call $fake_sqrt))
