@@ -86,8 +86,18 @@ plain_instr = _{
           | neg
           | inc
           | dec
+          | u8_promote
+          | u16_promote
+          | i8_promote
+          | i16_promote
+          | load_reg
+          | load
+          | store
+          | dup
+          | drop
           | call
           | ret
+          | syscall
       )
      ~ closing_brace
 }
@@ -134,11 +144,44 @@ inc = { inc_keyword ~ type_t }
 dec_keyword = _{ "dec" }
 dec = { dec_keyword ~ type_t }
 
+u8_promote_keyword = _{ "u8_promote" }
+u8_promote = { u8_promote_keyword }
+
+u16_promote_keyword = _{ "u16_promote" }
+u16_promote = { u16_promote_keyword }
+
+i8_promote_keyword = _{ "i8_promote" }
+i8_promote = { i8_promote_keyword }
+
+i16_promote_keyword = _{ "i16_promote" }
+i16_promote = { i16_promote_keyword }
+
+// The register is defined using an atom for later flexibility
+load_reg_keyword = _{ "load_reg" }
+load_reg = { load_reg_keyword ~ atom }
+
+// A LoadIndirect instruction is produced when the address at the end is omitted
+load_keyword = _{ "load" }
+load = { load_keyword ~ type_t ~ unsigned_num? }
+
+// A StoreIndirect instruction is produced when the address at the end is omitted
+store_keyword = _{ "store" }
+store = { store_keyword ~ type_t ~ unsigned_num? }
+
+dup_keyword = _{ "dup" }
+dup = { dup_keyword ~ type_t }
+
+drop_keyword = _{ "drop" }
+drop = { drop_keyword ~ type_t }
+
 call_keyword = _{ "call" }
 call = { call_keyword ~ func_id }
 
 ret_keyword = _{ "ret" }
 ret = { ret_keyword }
+
+syscall_keyword = _{ "syscall" }
+syscall = { syscall_keyword ~ atom }
 
 // While
 while_loop_keyword = _{ "while" }

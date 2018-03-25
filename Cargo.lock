@@ -23,6 +23,7 @@ dependencies = [
 name = "beast"
 version = "0.1.0"
 dependencies = [
+ "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "melon 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest_derive 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",

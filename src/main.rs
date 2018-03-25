@@ -6,9 +6,12 @@ extern crate serde_derive;
 extern crate melon;
 extern crate serde;
 extern crate toml;
+#[macro_use]
+extern crate failure;
 
 mod config;
 mod parser;
+mod compiler;
 
 use std::io::Read;
 use std::fs::File;
