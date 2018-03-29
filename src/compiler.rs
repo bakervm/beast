@@ -342,7 +342,10 @@ impl Compiler {
                 let signal = inner.next().unwrap().as_str();
                 Ok(Instruction::Sys(signal.into()))
             }
-            Rule::call => Ok(Instruction::U8Promote),
+            Rule::call => {
+                let func_id = inner.next().unwrap().as_str();
+                Ok(Instruction::Call(func_id.into()))
+            }
             Rule::ret => Ok(Instruction::Ret),
             Rule::alloc => {
                 let raw_num_const = inner.next().unwrap();
@@ -364,10 +367,10 @@ impl Compiler {
                 let cond = inner.next().unwrap();
 
                 let condition = match cond.as_rule() {
-                    Rule::positive => IfCond::Positive,
-                    Rule::negative => IfCond::Negative,
-                    Rule::zero => IfCond::Zero,
-                    Rule::not_zero => IfCond::NotZero,
+                    Rule::greater => IfCond::Positive,
+                    Rule::less => IfCond::Negative,
+                    Rule::equal => IfCond::Zero,
+                    Rule::unequal => IfCond::NotZero,
                     _ => unreachable!(),
                 };
 
@@ -388,10 +391,10 @@ impl Compiler {
                 let cond = inner.next().unwrap();
 
                 let condition = match cond.as_rule() {
-                    Rule::positive => IfCond::Positive,
-                    Rule::negative => IfCond::Negative,
-                    Rule::zero => IfCond::Zero,
-                    Rule::not_zero => IfCond::NotZero,
+                    Rule::greater => IfCond::Positive,
+                    Rule::less => IfCond::Negative,
+                    Rule::equal => IfCond::Zero,
+                    Rule::unequal => IfCond::NotZero,
                     _ => unreachable!(),
                 };
 
