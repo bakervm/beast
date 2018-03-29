@@ -1,0 +1,4 @@
+(func $sqrt
+  (push i16 -3000))
+
+(export $sqrt)

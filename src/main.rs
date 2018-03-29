@@ -1,27 +1,26 @@
 #[macro_use]
-extern crate pest_derive;
+extern crate failure;
+extern crate melon;
 extern crate pest;
 #[macro_use]
-extern crate serde_derive;
-extern crate melon;
+extern crate pest_derive;
 extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate toml;
 
+mod ast;
+mod compiler;
 mod config;
 mod parser;
 
-use std::io::Read;
-use std::fs::File;
-use pest::Parser;
+use compiler::Compiler;
+use config::Config;
 
 fn main() {
-    let mut file = File::open("main.beast").unwrap();
-    let mut buf = String::new();
+    let config = Config::from_file("Beast.toml").unwrap();
 
-    file.read_to_string(&mut buf).unwrap();
+    let res = Compiler::compile("main.beast", config).unwrap_or_else(|e| panic!("{}", e));
 
-    let res =
-        parser::BeastParser::parse(parser::Rule::file, &buf).unwrap_or_else(|e| panic!("{}", e));
-
-    println!("{}", res);
+    println!("{:#?}", res);
 }

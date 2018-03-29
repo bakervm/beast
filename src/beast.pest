@@ -8,12 +8,12 @@ hexdigit = @{
     | 'a' .. 'f'
     | digit
 }
-num = @{ digit ~ ("_"? ~ digit)* }
-hexnum = @{ hexdigit ~ ("_"? ~ hexdigit)* }
+num = @{ digit+ }
+hexnum = @{ hexdigit+ }
 
 unsigned_num = @{ "0x" ~ hexnum | num } // uN
 
-signed_num = @{ sign ~ unsigned_num } // sN
+signed_num = @{ sign ~ num } // sN
 
 // Strings
 string = @{ "\"" ~ stringelem* ~ "\"" }
@@ -83,11 +83,22 @@ plain_instr = _{
           | xor
           | not
           | neg
-          | neg
           | inc
           | dec
+          | u8_promote
+          | u16_demote
+          | i8_promote
+          | i16_demote
+          | reg
+          | load
+          | store
+          | dup
+          | drop
+          | sys
           | call
           | ret
+          | alloc
+          | free
       )
      ~ closing_brace
 }
@@ -134,11 +145,50 @@ inc = { inc_keyword ~ type_t }
 dec_keyword = _{ "dec" }
 dec = { dec_keyword ~ type_t }
 
+u8_promote_keyword = _{ "u8_promote" }
+u8_promote = { u8_promote_keyword }
+
+u16_demote_keyword = _{ "u16_demote" }
+u16_demote = { u16_demote_keyword }
+
+i8_promote_keyword = _{ "i8_promote" }
+i8_promote = { i8_promote_keyword }
+
+i16_demote_keyword = _{ "i16_demote" }
+i16_demote = { i16_demote_keyword }
+
+// The register is defined using an atom for later flexibility
+reg_keyword = _{ "reg" }
+reg = { reg_keyword ~ atom }
+
+// A LoadIndirect instruction is produced when the address at the end is omitted
+load_keyword = _{ "load" }
+load = { load_keyword ~ type_t ~ (unsigned_num | constant_id)? }
+
+// A StoreIndirect instruction is produced when the address at the end is omitted
+store_keyword = _{ "store" }
+store = { store_keyword ~ type_t ~ (unsigned_num | constant_id)? }
+
+dup_keyword = _{ "dup" }
+dup = { dup_keyword ~ type_t }
+
+drop_keyword = _{ "drop" }
+drop = { drop_keyword ~ type_t }
+
 call_keyword = _{ "call" }
 call = { call_keyword ~ func_id }
 
 ret_keyword = _{ "ret" }
 ret = { ret_keyword }
+
+alloc_keyword = _{ "alloc" }
+alloc = { alloc_keyword ~ (unsigned_num | constant_id) }
+
+free_keyword = _{ "free" }
+free = { free_keyword }
+
+sys_keyword = _{ "sys" }
+sys = { sys_keyword ~ atom }
 
 // While
 while_loop_keyword = _{ "while" }
@@ -147,10 +197,11 @@ while_loop = { opening_brace ~ while_loop_keyword ~ condition ~ instr* ~ closing
 // If
 if_cond_keyword = _{ "if" }
 else_cond_keyword = _{ "else" }
-if_cond = { opening_brace ~ if_cond_keyword ~ condition ~ instr* ~ (opening_brace ~ else_cond_keyword ~ instr* ~ closing_brace)? ~ closing_brace }
+if_cond = { opening_brace ~ if_cond_keyword ~ condition ~ instr* ~ else_cond? ~ closing_brace }
+else_cond = { opening_brace ~ else_cond_keyword ~ instr* ~ closing_brace }
 
 // condition
-condition = { opening_brace ~ conditional_func ~ closing_brace }
+condition = _{ opening_brace ~ conditional_func ~ type_t ~ closing_brace }
 conditional_func = _{ positive | zero | not_zero | negative }
 positive = @{ "p" }
 negative = @{ "n" }

@@ -1,14 +1,14 @@
-use std::path::Path;
-use std::collections::BTreeMap;
-use std::io::Read;
-use std::fs::File;
 use melon::typedef::*;
+use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 use toml;
 
 #[derive(Deserialize, Debug)]
 pub struct Program {
     /// The version of the melon library used by the target
-    pub target: String,
+    pub target_version: String,
     pub system_id: String,
     pub mem_pages: Option<u8>,
 }
@@ -27,7 +27,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn from_file<P: AsRef<Path>>(path: P) -> Result<Config> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Config> {
         let mut file = File::open(path)?;
 
         let mut buf = String::new();
