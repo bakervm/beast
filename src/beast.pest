@@ -201,7 +201,7 @@ if_cond = { opening_brace ~ if_cond_keyword ~ condition ~ instr* ~ else_cond? ~ 
 else_cond = { opening_brace ~ else_cond_keyword ~ instr* ~ closing_brace }
 
 // condition
-condition = _{ opening_brace ~ conditional_func ~ closing_brace }
+condition = _{ opening_brace ~ conditional_func ~ type_t ~ closing_brace }
 conditional_func = _{ positive | zero | not_zero | negative }
 positive = @{ "p" }
 negative = @{ "n" }

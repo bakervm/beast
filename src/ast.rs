@@ -66,12 +66,13 @@ pub enum IfCond {
 #[derive(Debug)]
 pub struct If(
     pub IfCond,
+    pub IntegerType,
     pub Vec<Instruction>,
     pub Option<Vec<Instruction>>,
 );
 
 #[derive(Debug)]
-pub struct While(pub IfCond, pub Vec<Instruction>);
+pub struct While(pub IfCond, pub IntegerType, pub Vec<Instruction>);
 
 #[derive(Debug)]
 pub struct Func {

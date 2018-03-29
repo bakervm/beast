@@ -371,6 +371,9 @@ impl Compiler {
                     _ => unreachable!(),
                 };
 
+                let type_t = inner.next().unwrap().as_str();
+                let real_type = Compiler::compile_type(type_t);
+
                 let mut instr_vec = Vec::new();
 
                 for instr in inner {
@@ -379,7 +382,7 @@ impl Compiler {
                     instr_vec.push(instr);
                 }
 
-                Ok(Instruction::While(While(condition, instr_vec)))
+                Ok(Instruction::While(While(condition, real_type, instr_vec)))
             }
             Rule::if_cond => {
                 let cond = inner.next().unwrap();
@@ -391,6 +394,9 @@ impl Compiler {
                     Rule::not_zero => IfCond::NotZero,
                     _ => unreachable!(),
                 };
+
+                let type_t = inner.next().unwrap().as_str();
+                let real_type = Compiler::compile_type(type_t);
 
                 let mut instr_vec = Vec::new();
 
@@ -415,7 +421,12 @@ impl Compiler {
                     instr_vec.push(instr);
                 }
 
-                Ok(Instruction::If(If(condition, instr_vec, else_branch)))
+                Ok(Instruction::If(If(
+                    condition,
+                    real_type,
+                    instr_vec,
+                    else_branch,
+                )))
             }
             _ => unreachable!(),
         }
