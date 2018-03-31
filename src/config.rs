@@ -16,7 +16,10 @@ pub struct Program {
 #[derive(Deserialize, Debug)]
 pub struct Compilation {
     pub entry_point: Option<String>,
-    pub absolute_module_paths: Option<bool>,
+    /// The paths to look for libraries
+    pub lib: Option<Vec<String>>,
+    /// The paths to look for files to include
+    pub include: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, Debug)]
