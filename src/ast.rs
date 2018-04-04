@@ -1,7 +1,7 @@
-use melon::typedef::*;
-use melon::{IntegerType, Register};
+use melon::{IntegerType, Register, typedef::*};
+use std::collections::BTreeMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     Add(IntegerType),
     Sub(IntegerType),
@@ -49,13 +49,13 @@ pub enum Instruction {
     If(If),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Argument<T> {
     Literal(T),
     Constant(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum IfCond {
     Positive,
     Negative,
@@ -63,7 +63,7 @@ pub enum IfCond {
     NotZero,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct If(
     pub IfCond,
     pub IntegerType,
@@ -71,16 +71,16 @@ pub struct If(
     pub Option<Vec<Instruction>>,
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct While(pub IfCond, pub IntegerType, pub Vec<Instruction>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Func {
     pub name: String,
     pub instr: Vec<Instruction>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Const {
     pub name: String,
     pub value: i32,
@@ -93,21 +93,22 @@ pub struct Import {
     pub module_path: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Export {
     pub origin_name: String,
     pub alias: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module {
+    pub path: String,
     pub imports: Vec<Import>,
     pub exports: Vec<Export>,
     pub constants: Vec<Const>,
     pub funcs: Vec<Func>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ast {
-    pub modules: Vec<Module>,
+    pub modules: BTreeMap<String, Module>,
 }

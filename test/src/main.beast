@@ -1,4 +1,8 @@
-(import $sqrt as $native_sqrt from "math")
+(import $sqrt as $native_sqrt from "math/sqrt")
+(import $sqrt as $native_sqrt from "math/rem")
+(import $sqrt as $native_sqrt from "math/round")
+
+(import $sqrt as $native_sqrt from "graphics/draw")
 
 (const %some_const 1)
 

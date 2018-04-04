@@ -1,26 +1,51 @@
 use ast::*;
 use config::Config;
-use melon::typedef::*;
-use melon::{IntegerType, Program, Register};
+use failure::ResultExt;
+use melon::{IntegerType, Program, Register, typedef::*};
 use parser::{BeastParser, Rule};
-use pest::Parser;
-use pest::iterators::Pair;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use pest::{Parser, iterators::Pair};
+use std::{
+    thread, collections::{BTreeMap, BTreeSet}, fs::File, io::Read, path::PathBuf,
+    sync::mpsc::{self, TryRecvError},
+};
 
-const BEAST_FILE_EXTENSION: &str = "beast";
+const BEAST_SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
+const BEAST_LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
+const BEAST_DEFAULT_LIB_PATH: &str = "lib";
+const BEAST_DEFAULT_INCLUDE_PATH: &str = "src";
+pub const BEAST_DEFAULT_ENTRY_POINT: &str = "main";
 
+#[derive(Clone)]
 pub struct Compiler {
-    instructions: Vec<Instruction>,
     config: Config,
+    lib: Vec<String>,
+    include: Vec<String>,
 }
 
 impl Compiler {
-    pub fn compile<P: AsRef<Path>>(path: P, config: Config) -> Result<Program> {
-        let root_file_path = path.as_ref().to_path_buf().canonicalize()?;
+    pub fn new(config: Config) -> Compiler {
+        let compilation = config.compilation.clone().unwrap_or_default();
 
-        let ast = Compiler::compile_ast(root_file_path)?;
+        let lib = compilation
+            .lib
+            .clone()
+            .unwrap_or(vec![BEAST_DEFAULT_LIB_PATH.into()]);
+
+        let include = compilation
+            .include
+            .clone()
+            .unwrap_or(vec![BEAST_DEFAULT_INCLUDE_PATH.into()]);
+
+        Compiler {
+            config: config,
+            lib: lib,
+            include: include,
+        }
+    }
+
+    pub fn compile(root_module: String, config: Config) -> Result<Program> {
+        let mut compiler = Compiler::new(config);
+        let ast = compiler.ast(root_module)?;
 
         println!("{:#?}", ast);
 
@@ -32,20 +57,67 @@ impl Compiler {
         })
     }
 
-    fn compile_ast(root_path: PathBuf) -> Result<Ast> {
-        let mut ast = Ast {
-            modules: Vec::new(),
-        };
+    fn ast(&mut self, root_module: String) -> Result<Ast> {
+        let (module_sender, module_receiver) = mpsc::channel();
+        let (instructor_sender, instructor_receiver) = mpsc::channel::<String>();
 
-        let module = Compiler::compile_file(root_path)?;
+        instructor_sender.send(root_module.clone())?;
 
-        ast.modules.push(module);
+        let compiler = self.clone();
+        let instructor_sender = instructor_sender.clone();
+        thread::spawn(move || {
+            while let Ok(module_name) = instructor_receiver.recv() {
+                let mut compiler = compiler.clone();
+                let module_sender = module_sender.clone();
+                thread::spawn(move || {
+                    let module = compiler.module(module_name.clone());
 
-        Ok(ast)
+                    module_sender.send((module_name, module)).unwrap();
+                });
+            }
+        });
+
+        let mut modules = BTreeMap::new();
+        let mut requested_modules = BTreeSet::new();
+        requested_modules.insert(root_module);
+
+        loop {
+            match module_receiver.try_recv() {
+                Ok((module_name, module_res)) => {
+                    let module = module_res.with_context(|e| {
+                        format!("failed to compile module {:?}\n{}", module_name, e)
+                    })?;
+
+                    let imports = module.imports.clone();
+
+                    modules.insert(module_name, module);
+
+                    for import in imports {
+                        if !requested_modules.contains(&import.module_path) {
+                            requested_modules.insert(import.module_path.clone());
+
+                            instructor_sender.send(import.module_path)?;
+                        }
+                    }
+                }
+                Err(TryRecvError::Empty) => {
+                    if modules.len() == requested_modules.len() {
+                        break;
+                    }
+
+                    thread::yield_now();
+                }
+                _ => bail!("an unknown error occured"),
+            }
+        }
+
+        Ok(Ast { modules: modules })
     }
 
-    fn compile_file(path: PathBuf) -> Result<Module> {
-        let mut file = File::open(path)?;
+    fn module(&mut self, module_path: String) -> Result<Module> {
+        let module_file = self.discover_module(module_path.clone())?;
+
+        let mut file = File::open(module_file)?;
 
         let mut buf = String::new();
 
@@ -60,6 +132,7 @@ impl Compiler {
         let parsed_file = parsing_result.unwrap();
 
         let mut module = Module {
+            path: module_path,
             imports: Vec::new(),
             exports: Vec::new(),
             constants: Vec::new(),
@@ -69,19 +142,19 @@ impl Compiler {
         for pair in parsed_file {
             match pair.as_rule() {
                 Rule::import => {
-                    let import = Compiler::compile_import(pair)?;
+                    let import = self.import(pair)?;
                     module.imports.push(import);
                 }
                 Rule::func => {
-                    let func = Compiler::compile_func(pair)?;
+                    let func = self.func(pair)?;
                     module.funcs.push(func);
                 }
                 Rule::export => {
-                    let export = Compiler::compile_export(pair)?;
+                    let export = self.export(pair)?;
                     module.exports.push(export);
                 }
                 Rule::constant => {
-                    let constant = Compiler::compile_constant(pair)?;
+                    let constant = self.constant(pair)?;
                     module.constants.push(constant);
                 }
                 _ => unreachable!(),
@@ -91,7 +164,7 @@ impl Compiler {
         Ok(module)
     }
 
-    fn compile_import(pair: Pair<Rule>) -> Result<Import> {
+    fn import(&mut self, pair: Pair<Rule>) -> Result<Import> {
         let mut pairs = pair.into_inner();
 
         let func_name = pairs.next().unwrap().as_str();
@@ -115,7 +188,7 @@ impl Compiler {
         })
     }
 
-    fn compile_func(pair: Pair<Rule>) -> Result<Func> {
+    fn func(&mut self, pair: Pair<Rule>) -> Result<Func> {
         let mut pairs = pair.into_inner();
 
         let func_name = pairs.next().unwrap().as_str();
@@ -123,7 +196,7 @@ impl Compiler {
         let mut instr_vec = Vec::new();
 
         for instr in pairs {
-            let instr = Compiler::compile_instr(instr)?;
+            let instr = self.instr(instr)?;
 
             instr_vec.push(instr);
         }
@@ -134,7 +207,7 @@ impl Compiler {
         })
     }
 
-    fn compile_constant(pair: Pair<Rule>) -> Result<Const> {
+    fn constant(&mut self, pair: Pair<Rule>) -> Result<Const> {
         let mut pairs = pair.into_inner();
 
         let const_name = pairs.next().unwrap().as_str();
@@ -147,7 +220,7 @@ impl Compiler {
         })
     }
 
-    fn compile_export(pair: Pair<Rule>) -> Result<Export> {
+    fn export(&mut self, pair: Pair<Rule>) -> Result<Export> {
         let mut pairs = pair.into_inner();
 
         let exported_func = pairs.next().unwrap().as_str();
@@ -160,7 +233,7 @@ impl Compiler {
         })
     }
 
-    fn compile_instr(pair: Pair<Rule>) -> Result<Instruction> {
+    fn instr(&mut self, pair: Pair<Rule>) -> Result<Instruction> {
         let mut pairs = pair.into_inner();
 
         let plain_instr = pairs.next().unwrap();
@@ -169,7 +242,7 @@ impl Compiler {
         match plain_instr.as_rule() {
             Rule::push_instr => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
 
                 let raw_arg = inner.next().unwrap();
                 match raw_arg.as_rule() {
@@ -216,67 +289,67 @@ impl Compiler {
             }
             Rule::add => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Add(real_type))
             }
             Rule::sub => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Sub(real_type))
             }
             Rule::mul => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Mul(real_type))
             }
             Rule::div => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Div(real_type))
             }
             Rule::shr => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Shr(real_type))
             }
             Rule::shl => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Shl(real_type))
             }
             Rule::and => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::And(real_type))
             }
             Rule::or => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Or(real_type))
             }
             Rule::xor => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Xor(real_type))
             }
             Rule::not => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Not(real_type))
             }
             Rule::neg => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Neg(real_type))
             }
             Rule::inc => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Inc(real_type))
             }
             Rule::dec => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Dec(real_type))
             }
             Rule::u8_promote => Ok(Instruction::U8Promote),
@@ -286,13 +359,11 @@ impl Compiler {
             Rule::reg => {
                 let raw_register = inner.next().unwrap().as_str();
 
-                Ok(Instruction::LoadReg(Compiler::compile_register(
-                    raw_register,
-                )?))
+                Ok(Instruction::LoadReg(self.register(raw_register)?))
             }
             Rule::load => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
 
                 if let Some(raw_arg) = inner.next() {
                     let arg = if raw_arg.as_rule() == Rule::constant_id {
@@ -311,7 +382,7 @@ impl Compiler {
             }
             Rule::store => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
 
                 if let Some(raw_arg) = inner.next() {
                     let arg = if raw_arg.as_rule() == Rule::constant_id {
@@ -330,12 +401,12 @@ impl Compiler {
             }
             Rule::dup => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Dup(real_type))
             }
             Rule::drop => {
                 let raw_type = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(raw_type);
+                let real_type = self.type_(raw_type);
                 Ok(Instruction::Drop(real_type))
             }
             Rule::sys => {
@@ -375,12 +446,12 @@ impl Compiler {
                 };
 
                 let type_t = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(type_t);
+                let real_type = self.type_(type_t);
 
                 let mut instr_vec = Vec::new();
 
                 for instr in inner {
-                    let instr = Compiler::compile_instr(instr)?;
+                    let instr = self.instr(instr)?;
 
                     instr_vec.push(instr);
                 }
@@ -399,7 +470,7 @@ impl Compiler {
                 };
 
                 let type_t = inner.next().unwrap().as_str();
-                let real_type = Compiler::compile_type(type_t);
+                let real_type = self.type_(type_t);
 
                 let mut instr_vec = Vec::new();
 
@@ -410,7 +481,7 @@ impl Compiler {
                         let mut else_instr_vec = Vec::new();
 
                         for instr in instr.into_inner() {
-                            let instr = Compiler::compile_instr(instr)?;
+                            let instr = self.instr(instr)?;
 
                             else_instr_vec.push(instr);
                         }
@@ -419,7 +490,7 @@ impl Compiler {
                         break;
                     }
 
-                    let instr = Compiler::compile_instr(instr)?;
+                    let instr = self.instr(instr)?;
 
                     instr_vec.push(instr);
                 }
@@ -435,7 +506,7 @@ impl Compiler {
         }
     }
 
-    fn compile_type(raw: &str) -> IntegerType {
+    fn type_(&mut self, raw: &str) -> IntegerType {
         match raw {
             "u8" => IntegerType::U8,
             "u16" => IntegerType::U16,
@@ -445,13 +516,65 @@ impl Compiler {
         }
     }
 
-    fn compile_register(raw: &str) -> Result<Register> {
+    fn register(&mut self, raw: &str) -> Result<Register> {
         let res = match raw {
             ":sp" => Register::StackPtr,
             ":bp" => Register::BasePtr,
-            reg => bail!("unrecognized register identifier: {}", reg),
+            reg => bail!(
+                "unrecognized register identifier: {:?} is not one of {:?}",
+                reg,
+                vec![":sp", ":bp"]
+            ),
         };
 
         Ok(res)
+    }
+
+    fn discover_module(&mut self, module: String) -> Result<PathBuf> {
+        let orig_module = module.clone();
+
+        let blib_module_name =
+            PathBuf::from(&orig_module).with_extension(BEAST_LIB_FILE_EXTENSIONS[0]);
+
+        let bl_module_name =
+            PathBuf::from(&orig_module).with_extension(BEAST_LIB_FILE_EXTENSIONS[1]);
+
+        let beast_module_name =
+            PathBuf::from(&orig_module).with_extension(BEAST_SOURCE_FILE_EXTENSIONS[0]);
+
+        let bst_module_name =
+            PathBuf::from(&orig_module).with_extension(BEAST_SOURCE_FILE_EXTENSIONS[1]);
+
+        let found_libs: Vec<_> = self.lib
+            .iter()
+            .map(|lib| PathBuf::from(lib).join(blib_module_name.clone()))
+            .chain(
+                self.lib
+                    .iter()
+                    .map(|lib| PathBuf::from(lib).join(bl_module_name.clone())),
+            )
+            .filter(|lib| lib.exists())
+            .collect();
+
+        if found_libs.len() > 0 {
+            return Ok(found_libs[0].clone());
+        }
+
+        let found_modules: Vec<_> = self.include
+            .iter()
+            .map(|include| PathBuf::from(include).join(beast_module_name.clone()))
+            .chain(
+                self.include
+                    .iter()
+                    .map(|include| PathBuf::from(include).join(bst_module_name.clone())),
+            )
+            .filter(|include| include.exists())
+            .collect();
+
+        if found_modules.len() > 0 {
+            return Ok(found_modules[0].clone());
+        }
+
+        bail!("unable to find module: {:?}", module)
     }
 }
