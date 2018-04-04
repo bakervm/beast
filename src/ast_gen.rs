@@ -553,7 +553,7 @@ impl AstGen {
         let bst_module_name =
             PathBuf::from(&orig_module).with_extension(BEAST_SOURCE_FILE_EXTENSIONS[1]);
 
-        let found_libs: Vec<_> = self.lib
+        let found_lib = self.lib
             .iter()
             .map(|lib| PathBuf::from(lib).join(blib_module_name.clone()))
             .chain(
@@ -561,15 +561,14 @@ impl AstGen {
                     .iter()
                     .map(|lib| PathBuf::from(lib).join(bl_module_name.clone())),
             )
-            .filter(|lib| lib.exists())
-            .collect();
+            .find(|lib| lib.exists());
 
-        if found_libs.len() > 0 {
-            let file_path = found_libs[0].clone();
-            return Ok(ModuleSource::Lib(Lib::from_file(file_path)?));
+        if let Some(lib_path) = found_lib {
+            let lib = Lib::from_file(lib_path)?;
+            return Ok(ModuleSource::Lib(lib));
         }
 
-        let found_modules: Vec<_> = self.include
+        let found_module = self.include
             .iter()
             .map(|include| PathBuf::from(include).join(beast_module_name.clone()))
             .chain(
@@ -577,11 +576,10 @@ impl AstGen {
                     .iter()
                     .map(|include| PathBuf::from(include).join(bst_module_name.clone())),
             )
-            .filter(|include| include.exists())
-            .collect();
+            .find(|include| include.exists());
 
-        if found_modules.len() > 0 {
-            return Ok(ModuleSource::Module(found_modules[0].clone()));
+        if let Some(module_path) = found_module {
+            return Ok(ModuleSource::Module(module_path));
         }
 
         bail!("unable to find module: {:?}", module)
