@@ -7,15 +7,18 @@ extern crate pest_derive;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate flate2;
+extern crate rmp_serde as rmps;
 extern crate toml;
 
 mod ast;
+mod ast_gen;
 mod compiler;
 mod config;
 mod library;
 mod parser;
 
-use compiler::Compiler;
+use ast_gen::AstGen;
 use config::Config;
 use melon::typedef::Result;
 use std::time::Instant;
@@ -38,10 +41,12 @@ fn run() -> Result<()> {
         .compilation
         .unwrap_or_default()
         .entry_point
-        .unwrap_or(compiler::BEAST_DEFAULT_ENTRY_POINT.into());
+        .unwrap_or(ast_gen::BEAST_DEFAULT_ENTRY_POINT.into());
 
     let now = Instant::now();
-    let res = Compiler::compile(entry_point, config)?;
+
+    let res = AstGen::gen(entry_point, config)?;
+    println!("{:#?}", res);
 
     println!(
         "Compilation finished. Took {} seconds",

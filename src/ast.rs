@@ -1,3 +1,4 @@
+use library::Lib;
 use melon::{IntegerType, Register, typedef::*};
 use std::collections::BTreeMap;
 
@@ -100,12 +101,15 @@ pub struct Export {
 }
 
 #[derive(Debug, Clone)]
-pub struct Module {
-    pub path: String,
-    pub imports: Vec<Import>,
-    pub exports: Vec<Export>,
-    pub constants: Vec<Const>,
-    pub funcs: Vec<Func>,
+pub enum Module {
+    Source {
+        path: String,
+        imports: Vec<Import>,
+        exports: Vec<Export>,
+        constants: Vec<Const>,
+        funcs: Vec<Func>,
+    },
+    Lib(Lib),
 }
 
 #[derive(Debug, Clone)]
