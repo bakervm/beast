@@ -6,7 +6,14 @@ system_id = "__TEST_SYSTEM__"
 mem_pages = 34
 
 [compilation]
-entry_point = "src/main.beast" # This is also the default
+entry_point = "main" # This is also the default
+lib = [
+  "test/lib"
+]
+include = [
+  "test/src"
+]
+
 
 [signals]
 gurgle = 1

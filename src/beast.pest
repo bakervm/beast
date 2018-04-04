@@ -202,11 +202,11 @@ else_cond = { opening_brace ~ else_cond_keyword ~ instr* ~ closing_brace }
 
 // condition
 condition = _{ opening_brace ~ conditional_func ~ type_t ~ closing_brace }
-conditional_func = _{ positive | zero | not_zero | negative }
-positive = @{ "p" }
-negative = @{ "n" }
-zero = @{ "z" }
-not_zero = @{ "nz" }
+conditional_func = _{ greater | equal | unequal | less }
+greater = @{ ">" }
+less = @{ "<" }
+equal = @{ "=" }
+unequal = @{ "!" }
 
 /// Misc
 opening_brace = _{ "(" }

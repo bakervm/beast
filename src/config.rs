@@ -1,11 +1,8 @@
 use melon::typedef::*;
-use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::Read;
-use std::path::Path;
+use std::{collections::BTreeMap, fs::File, io::Read, path::Path};
 use toml;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Program {
     /// The version of the melon library used by the target
     pub target_version: String,
@@ -13,17 +10,20 @@ pub struct Program {
     pub mem_pages: Option<u8>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default, Clone)]
 pub struct Compilation {
     pub entry_point: Option<String>,
-    pub absolute_module_paths: Option<bool>,
+    /// The paths to look for libraries
+    pub lib: Option<Vec<String>>,
+    /// The paths to look for files to include
+    pub include: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Config {
-    program: Program,
-    compilation: Option<Compilation>,
-    signals: Option<BTreeMap<String, u16>>,
+    pub program: Program,
+    pub compilation: Option<Compilation>,
+    pub signals: Option<BTreeMap<String, u16>>,
 }
 
 impl Config {
