@@ -1,6 +1,7 @@
 # This is a configuration file made for testing purposes
 
 [program]
+name = "test_thing"
 target_version = "0.8.0" # the version of the melon library used by the target
 system_id = "__TEST_SYSTEM__"
 mem_pages = 34
