@@ -1,10 +1,6 @@
 (import $sqrt as $native_sqrt from "math/sqrt")
-(import $sqrt as $native_sqrt from "math/rem")
-(import $sqrt as $native_sqrt from "math/round")
 
-(import $sqrt as $native_sqrt from "graphics/draw")
-
-(const %some_const 1)
+(const %some_const 123)
 
 (func $fake_sqrt
   (push u8 1)
@@ -97,14 +93,12 @@
   (store u8)
   (dup u8)
   (drop u8)
-  (call $some_function)
+  (call $native_sqrt)
   (ret)
-  (sys :signal)
+  (sys :nuke)
   (call $native_sqrt)
   (alloc 6)
   (free))
 
 (func $main
   (call $fake_sqrt))
-
-(export $fake_sqrt)
