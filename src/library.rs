@@ -7,8 +7,8 @@ use std::{collections::BTreeMap, fs::File, io::{Read, Write}, path::Path};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Lib {
-    instructions: Vec<Instruction>,
-    exports: BTreeMap<String, usize>,
+    pub instructions: Vec<Instruction>,
+    pub exports: BTreeMap<String, usize>,
 }
 
 impl Lib {

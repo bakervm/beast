@@ -18,7 +18,7 @@ mod config;
 mod library;
 mod parser;
 
-use ast_gen::AstGen;
+use compiler::Compiler;
 use config::Config;
 use melon::typedef::Result;
 use std::time::Instant;
@@ -41,12 +41,11 @@ fn run() -> Result<()> {
         .compilation
         .unwrap_or_default()
         .entry_point
-        .unwrap_or(ast_gen::BEAST_DEFAULT_ENTRY_POINT.into());
+        .unwrap_or(ast_gen::BEAST_DEFAULT_ENTRY_POINT_MODULE.into());
 
     let now = Instant::now();
 
-    let res = AstGen::gen(entry_point, config)?;
-    println!("{:#?}", res);
+    let program = Compiler::compile(entry_point, config)?;
 
     println!(
         "Compilation finished. Took {} seconds",
