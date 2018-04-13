@@ -26,6 +26,13 @@ func_alias = @{ func_id }
 
 constant_id = @{ "%" ~ idchar+ }
 
+modidchar = @{
+    'a' .. 'z'
+    | "_"
+}
+module_id = @{ module_id_part ~ ( "." ~ module_id_part )* }
+module_id_part = { modidchar+ }
+
 id = @{ "$" ~ idchar+ }
 idchar = @{
       '0' .. '9'
@@ -61,7 +68,7 @@ from_keyword = _{ "from" }
 as_keyword = _{ "as" }
 
 import_keyword = _{ "import" }
-import = { opening_brace ~ import_keyword ~ func_id ~ (as_keyword ~ func_alias)? ~ from_keyword ~ string ~ closing_brace }
+import = { opening_brace ~ import_keyword ~ func_id ~ (as_keyword ~ func_alias)? ~ from_keyword ~ module_id ~ closing_brace }
 
 export_keyword = _{ "export" }
 export = { opening_brace ~ export_keyword ~ func_id ~ (as_keyword ~ func_alias)? ~ closing_brace }
