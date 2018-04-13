@@ -12,8 +12,8 @@ use std::{
 
 const BEAST_SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
 const BEAST_LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
-const BEAST_DEFAULT_LIB_PATH: &str = "lib";
-const BEAST_DEFAULT_INCLUDE_PATH: &str = "src";
+pub const BEAST_DEFAULT_LIB_PATH: &str = "lib";
+pub const BEAST_DEFAULT_INCLUDE_PATH: &str = "src";
 pub const BEAST_DEFAULT_ENTRY_POINT_MODULE: &str = "main";
 pub const BEAST_ENTRY_POINT_FUNC: &str = "$main";
 

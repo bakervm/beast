@@ -1,6 +1,7 @@
 [package]
 name = "beast"
-version = "0.1.0"
+version = "1.0.0-alpha.0"
+description = "A build tool for the Beast high level assembly language"
 authors = ["Julian Laubstein <contact@julianlaubstein.de>"]
 
 [dependencies]
@@ -13,3 +14,4 @@ toml = "0.4.6"
 failure = "0.1.1"
 flate2 = "1.0.1"
 rmp-serde = "0.13.7"
+structopt = "0.2.6"
