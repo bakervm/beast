@@ -2,12 +2,16 @@ use ast::*;
 use config::Config;
 use failure::ResultExt;
 use library::Lib;
-use melon::{IntegerType, Register, typedef::*};
+use melon::{typedef::*, IntegerType, Register};
 use parser::{BeastParser, Rule};
-use pest::{Parser, iterators::Pair};
+use pest::{iterators::Pair, Parser};
 use std::{
-    thread, collections::{BTreeMap, BTreeSet}, fs::File, io::Read, path::PathBuf,
+    collections::{BTreeMap, BTreeSet},
+    fs::File,
+    io::Read,
+    path::PathBuf,
     sync::mpsc::{self, TryRecvError},
+    thread,
 };
 
 const BEAST_SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
@@ -186,9 +190,7 @@ impl AstGen {
             (None, after_func.as_str())
         };
 
-        let mut module_path = module_path.to_owned();
-        module_path.pop();
-        module_path.remove(0);
+        let module_path = module_path.to_owned();
 
         Ok(Import {
             origin_name: func_name.into(),
@@ -542,17 +544,15 @@ impl AstGen {
     fn discover_module(&mut self, module: String) -> Result<ModuleSource> {
         let orig_module = module.clone();
 
-        let blib_module_name =
-            PathBuf::from(&orig_module).with_extension(BEAST_LIB_FILE_EXTENSIONS[0]);
+        let base_path: PathBuf = orig_module.split('.').collect();
 
-        let bl_module_name =
-            PathBuf::from(&orig_module).with_extension(BEAST_LIB_FILE_EXTENSIONS[1]);
+        let blib_module_name = base_path.with_extension(BEAST_LIB_FILE_EXTENSIONS[0]);
 
-        let beast_module_name =
-            PathBuf::from(&orig_module).with_extension(BEAST_SOURCE_FILE_EXTENSIONS[0]);
+        let bl_module_name = base_path.with_extension(BEAST_LIB_FILE_EXTENSIONS[1]);
 
-        let bst_module_name =
-            PathBuf::from(&orig_module).with_extension(BEAST_SOURCE_FILE_EXTENSIONS[1]);
+        let beast_module_name = base_path.with_extension(BEAST_SOURCE_FILE_EXTENSIONS[0]);
+
+        let bst_module_name = base_path.with_extension(BEAST_SOURCE_FILE_EXTENSIONS[1]);
 
         let found_lib = self.lib
             .iter()

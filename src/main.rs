@@ -23,7 +23,12 @@ mod parser;
 use compiler::Compiler;
 use config::Config;
 use melon::typedef::Result;
-use std::{fs::{self, File}, io::Write, path::PathBuf, time::Instant};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+    time::Instant,
+};
 use structopt::StructOpt;
 
 const TARGET_DIRECTORY: &str = "target";
@@ -106,12 +111,15 @@ fn init(path: &PathBuf) -> Result<()> {
     fs::create_dir_all(path.join(ast_gen::BEAST_DEFAULT_INCLUDE_PATH))?;
 
     let config_data = include_bytes!("templates/Beast.template.toml");
-    let main_file_data = include_bytes!("templates/main.bst");
+    let main_file_data = include_bytes!("templates/main.template.bst");
 
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
     config_file.write_all(&config_data[..])?;
 
-    let mut main_file_file = File::create(path.join("main.bst"))?;
+    let mut main_file_file = File::create(
+        path.join(ast_gen::BEAST_DEFAULT_INCLUDE_PATH)
+            .join("main.bst"),
+    )?;
     main_file_file.write_all(&main_file_data[..])?;
 
     println!("New project successfully initialized at {:?}", path);

@@ -1,4 +1,4 @@
-(import $bla from "math/bla")
+(import $bla from math.bla)
 
 (func $sqrt
   (while (< u16)

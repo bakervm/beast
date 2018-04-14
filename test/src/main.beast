@@ -1,4 +1,4 @@
-(import $sqrt as $native_sqrt from "math/sqrt")
+(import $sqrt as $native_sqrt from math.sqrt)
 
 (const %some_const 123)
 
