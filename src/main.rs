@@ -122,6 +122,7 @@ fn init(path: &PathBuf) -> Result<()> {
 
     let config_data = include_bytes!("templates/Beast.toml");
     let main_file_data = include_bytes!("templates/main.bst");
+    let gitignore_data = include_bytes!("templates/.gitignore");
 
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
     config_file.write_all(&config_data[..])?;
@@ -131,6 +132,9 @@ fn init(path: &PathBuf) -> Result<()> {
             .join("main.bst"),
     )?;
     main_file_file.write_all(&main_file_data[..])?;
+
+    let mut gitignore = File::create(path.join(".gitignore"))?;
+    gitignore.write_all(&gitignore_data[..])?;
 
     println!("New project successfully initialized at {:?}", path);
 
