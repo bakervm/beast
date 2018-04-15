@@ -42,7 +42,15 @@ enum Opt {
         path: PathBuf,
     },
     #[structopt(name = "build", about = "builds the current project")]
-    Build,
+    Build {
+        #[structopt(
+            long = "emit-func-map",
+            help = "emits the corresponding function-map for the current build"
+        )]
+        emit_func_map: bool,
+        #[structopt(long = "emit-ast", help = "emits the corresponding AST for the current build")]
+        emit_ast: bool,
+    },
 }
 
 fn main() {
@@ -59,14 +67,17 @@ fn run() -> Result<()> {
     let opt = Opt::from_args();
 
     match opt {
-        Opt::Build => build()?,
+        Opt::Build {
+            emit_func_map,
+            emit_ast,
+        } => build(emit_func_map, emit_ast)?,
         Opt::Init { path } => init(&path)?,
     }
 
     Ok(())
 }
 
-fn build() -> Result<()> {
+fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
     let config_file = PathBuf::from(CONFIG_FILE_NAME);
 
     ensure!(
@@ -77,18 +88,17 @@ fn build() -> Result<()> {
 
     let config = Config::from_file(config_file)?;
 
-    let entry_point = config
-        .clone()
-        .compilation
-        .unwrap_or_default()
+    let compilation = config.compilation.clone();
+
+    let entry_point = compilation
         .entry_point
-        .unwrap_or(ast_gen::BEAST_DEFAULT_ENTRY_POINT_MODULE.into());
+        .unwrap_or(ast_gen::DEFAULT_BIN_ENTRY_POINT_MODULE.into());
 
     let name = config.program.name.clone();
 
     let now = Instant::now();
 
-    let program = Compiler::compile(entry_point, config)?;
+    let program = Compiler::compile(entry_point, config, emit_func_map, emit_ast)?;
 
     println!(
         "Compilation finished. Took {} seconds",

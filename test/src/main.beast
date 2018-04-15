@@ -1,6 +1,6 @@
 (import $sqrt as $native_sqrt from math.sqrt)
 
-(const %some_const 123)
+(const %SOME_CONST 123)
 
 (func $fake_sqrt
   (push u8 1)
@@ -8,7 +8,7 @@
   (push u8 0xFF)
   (push i16 0xFF)
   (push u8 21)
-  (push u8 %some_const)
+  (push u8 %SOME_CONST)
   (add u8)
   (sub u16)
   (mul u8)

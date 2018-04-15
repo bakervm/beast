@@ -18,7 +18,7 @@ const BEAST_SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
 const BEAST_LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
 pub const BEAST_DEFAULT_LIB_PATH: &str = "lib";
 pub const BEAST_DEFAULT_INCLUDE_PATH: &str = "src";
-pub const BEAST_DEFAULT_ENTRY_POINT_MODULE: &str = "main";
+pub const DEFAULT_BIN_ENTRY_POINT_MODULE: &str = "main";
 pub const BEAST_ENTRY_POINT_FUNC: &str = "$main";
 
 #[derive(Clone)]
@@ -30,17 +30,11 @@ pub struct AstGen {
 
 impl AstGen {
     fn new(config: Config) -> AstGen {
-        let compilation = config.compilation.clone().unwrap_or_default();
+        let mut lib = config.compilation.lib_dirs.clone();
+        lib.push(BEAST_DEFAULT_LIB_PATH.into());
 
-        let lib = compilation
-            .lib
-            .clone()
-            .unwrap_or(vec![BEAST_DEFAULT_LIB_PATH.into()]);
-
-        let include = compilation
-            .include
-            .clone()
-            .unwrap_or(vec![BEAST_DEFAULT_INCLUDE_PATH.into()]);
+        let mut include = config.compilation.include_dirs.clone();
+        include.push(BEAST_DEFAULT_INCLUDE_PATH.into());
 
         AstGen {
             config: config,
