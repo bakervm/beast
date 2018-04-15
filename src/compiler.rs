@@ -183,13 +183,13 @@ impl Compiler {
         let entry_func_map = module_map
             .get(ast_gen::DEFAULT_BIN_ENTRY_POINT_MODULE)
             .ok_or(format_err!(
-                "unable to find module {:?}",
+                "unable to find entry module {:?}",
                 ast_gen::DEFAULT_BIN_ENTRY_POINT_MODULE
             ))?;
 
         let entry_func_addr = entry_func_map.get(ast_gen::BEAST_ENTRY_POINT_FUNC).ok_or(
             format_err!(
-                "unable to find function {:?}",
+                "unable to find entry function {:?}",
                 ast_gen::BEAST_ENTRY_POINT_FUNC
             ),
         )?;
