@@ -80,8 +80,6 @@ impl Compiler {
                             &path,
                         )?;
 
-                        meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::Ret));
-
                         let exported_func = exports.iter().find(|exp| exp.origin_name == func.name);
 
                         let mut func_name = if let Some(exp) = exported_func {
@@ -94,6 +92,9 @@ impl Compiler {
                             && func.name == ast_gen::BEAST_ENTRY_POINT_FUNC
                         {
                             func_name = ast_gen::BEAST_ENTRY_POINT_FUNC.into();
+                            meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::SysCall(0)));
+                        } else {
+                            meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::Ret));
                         }
 
                         meta_func_map.insert(func_name, meta_instr);
