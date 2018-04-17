@@ -117,8 +117,8 @@ fn init(path: &PathBuf) -> Result<()> {
     ensure!(!path.exists(), "directory already exists");
 
     fs::create_dir_all(path.join(TARGET_DIRECTORY))?;
-    fs::create_dir_all(path.join(ast_gen::BEAST_DEFAULT_LIB_PATH))?;
-    fs::create_dir_all(path.join(ast_gen::BEAST_DEFAULT_INCLUDE_PATH))?;
+    fs::create_dir_all(path.join(ast_gen::DEFAULT_LIB_PATH))?;
+    fs::create_dir_all(path.join(ast_gen::DEFAULT_INCLUDE_PATH))?;
 
     let config_data = include_bytes!("templates/Beast.toml");
     let main_file_data = include_bytes!("templates/main.bst");
@@ -127,10 +127,8 @@ fn init(path: &PathBuf) -> Result<()> {
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
     config_file.write_all(&config_data[..])?;
 
-    let mut main_file_file = File::create(
-        path.join(ast_gen::BEAST_DEFAULT_INCLUDE_PATH)
-            .join("main.bst"),
-    )?;
+    let mut main_file_file =
+        File::create(path.join(ast_gen::DEFAULT_INCLUDE_PATH).join("main.bst"))?;
     main_file_file.write_all(&main_file_data[..])?;
 
     let mut gitignore = File::create(path.join(".gitignore"))?;

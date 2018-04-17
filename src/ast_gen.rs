@@ -14,12 +14,12 @@ use std::{
     thread,
 };
 
-const BEAST_SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
-const BEAST_LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
-pub const BEAST_DEFAULT_LIB_PATH: &str = "lib";
-pub const BEAST_DEFAULT_INCLUDE_PATH: &str = "src";
+const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
+const LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
+pub const DEFAULT_LIB_PATH: &str = "lib";
+pub const DEFAULT_INCLUDE_PATH: &str = "src";
 pub const DEFAULT_BIN_ENTRY_POINT_MODULE: &str = "main";
-pub const BEAST_ENTRY_POINT_FUNC: &str = "$main";
+pub const ENTRY_POINT_FUNC: &str = "$main";
 
 #[derive(Clone)]
 pub struct AstGen {
@@ -31,10 +31,10 @@ pub struct AstGen {
 impl AstGen {
     fn new(config: Config) -> AstGen {
         let mut lib = config.compilation.lib_dirs.clone();
-        lib.push(BEAST_DEFAULT_LIB_PATH.into());
+        lib.push(DEFAULT_LIB_PATH.into());
 
         let mut include = config.compilation.include_dirs.clone();
-        include.push(BEAST_DEFAULT_INCLUDE_PATH.into());
+        include.push(DEFAULT_INCLUDE_PATH.into());
 
         AstGen {
             config: config,
@@ -540,13 +540,13 @@ impl AstGen {
 
         let base_path: PathBuf = orig_module.split('.').collect();
 
-        let blib_module_name = base_path.with_extension(BEAST_LIB_FILE_EXTENSIONS[0]);
+        let blib_module_name = base_path.with_extension(LIB_FILE_EXTENSIONS[0]);
 
-        let bl_module_name = base_path.with_extension(BEAST_LIB_FILE_EXTENSIONS[1]);
+        let bl_module_name = base_path.with_extension(LIB_FILE_EXTENSIONS[1]);
 
-        let beast_module_name = base_path.with_extension(BEAST_SOURCE_FILE_EXTENSIONS[0]);
+        let beast_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[0]);
 
-        let bst_module_name = base_path.with_extension(BEAST_SOURCE_FILE_EXTENSIONS[1]);
+        let bst_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[1]);
 
         let found_lib = self.lib
             .iter()

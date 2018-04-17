@@ -88,10 +88,8 @@ impl Compiler {
                             format!("{}{}", PRIVATE_PREFIX, func.name)
                         };
 
-                        if module_name == root_module
-                            && func.name == ast_gen::BEAST_ENTRY_POINT_FUNC
-                        {
-                            func_name = ast_gen::BEAST_ENTRY_POINT_FUNC.into();
+                        if module_name == root_module && func.name == ast_gen::ENTRY_POINT_FUNC {
+                            func_name = ast_gen::ENTRY_POINT_FUNC.into();
                             meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::SysCall(0)));
                         } else {
                             meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::Ret));
@@ -188,12 +186,12 @@ impl Compiler {
                 ast_gen::DEFAULT_BIN_ENTRY_POINT_MODULE
             ))?;
 
-        let entry_func_addr = entry_func_map.get(ast_gen::BEAST_ENTRY_POINT_FUNC).ok_or(
-            format_err!(
+        let entry_func_addr = entry_func_map
+            .get(ast_gen::ENTRY_POINT_FUNC)
+            .ok_or(format_err!(
                 "unable to find entry function {:?}",
-                ast_gen::BEAST_ENTRY_POINT_FUNC
-            ),
-        )?;
+                ast_gen::ENTRY_POINT_FUNC
+            ))?;
 
         Ok(Program {
             target_version: self.config.program.target_version.clone(),
