@@ -1,5 +1,6 @@
 use ast::*;
 use config::Config;
+use defaults;
 use failure::ResultExt;
 use library::Lib;
 use melon::{typedef::*, IntegerType, Register};
@@ -16,10 +17,6 @@ use std::{
 
 const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
 const LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
-pub const DEFAULT_LIB_PATH: &str = "lib";
-pub const DEFAULT_INCLUDE_PATH: &str = "src";
-pub const DEFAULT_BIN_ENTRY_POINT_MODULE: &str = "main";
-pub const ENTRY_POINT_FUNC: &str = "$main";
 
 #[derive(Clone)]
 pub struct AstGen {
@@ -31,10 +28,10 @@ pub struct AstGen {
 impl AstGen {
     fn new(config: Config) -> AstGen {
         let mut lib = config.compilation.lib_dirs.clone();
-        lib.push(DEFAULT_LIB_PATH.into());
+        lib.push(defaults::DEFAULT_LIB_PATH.into());
 
         let mut include = config.compilation.include_dirs.clone();
-        include.push(DEFAULT_INCLUDE_PATH.into());
+        include.push(defaults::DEFAULT_INCLUDE_PATH.into());
 
         AstGen {
             config: config,

@@ -2,8 +2,9 @@ use ast::{
     Argument, Ast, Const, Export, Func, If, IfCond, Import, Instruction as BeastInstruction,
     Module, While,
 };
-use ast_gen::{self, AstGen};
+use ast_gen::AstGen;
 use config::Config;
+use defaults;
 use library::Lib;
 use melon::{typedef::*, Instruction as MelonInstruction, Program};
 use std::collections::BTreeMap;
@@ -88,8 +89,8 @@ impl Compiler {
                             format!("{}{}", PRIVATE_PREFIX, func.name)
                         };
 
-                        if module_name == root_module && func.name == ast_gen::ENTRY_POINT_FUNC {
-                            func_name = ast_gen::ENTRY_POINT_FUNC.into();
+                        if module_name == root_module && func.name == defaults::ENTRY_POINT_FUNC {
+                            func_name = defaults::ENTRY_POINT_FUNC.into();
                             meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::SysCall(0)));
                         } else {
                             meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::Ret));
@@ -180,17 +181,17 @@ impl Compiler {
         }
 
         let entry_func_map = module_map
-            .get(ast_gen::DEFAULT_BIN_ENTRY_POINT_MODULE)
+            .get(defaults::DEFAULT_BIN_ENTRY_POINT_MODULE)
             .ok_or(format_err!(
                 "unable to find entry module {:?}",
-                ast_gen::DEFAULT_BIN_ENTRY_POINT_MODULE
+                defaults::DEFAULT_BIN_ENTRY_POINT_MODULE
             ))?;
 
         let entry_func_addr = entry_func_map
-            .get(ast_gen::ENTRY_POINT_FUNC)
+            .get(defaults::ENTRY_POINT_FUNC)
             .ok_or(format_err!(
                 "unable to find entry function {:?}",
-                ast_gen::ENTRY_POINT_FUNC
+                defaults::ENTRY_POINT_FUNC
             ))?;
 
         Ok(Program {
