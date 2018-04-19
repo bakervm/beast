@@ -582,3 +582,19 @@ enum ModuleSource {
     Module(PathBuf),
     Lib(Lib),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_data() {
+        const MODULE_NAME: &str = "templates.main";
+
+        let config = Config::from_file("src/templates/Beast.toml").unwrap();
+
+        let mut ast_gen = AstGen::new(config);
+
+        let _ = ast_gen.module(MODULE_NAME.to_string());
+    }
+}
