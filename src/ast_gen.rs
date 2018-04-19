@@ -126,11 +126,10 @@ impl AstGen {
 
         let parsing_result = BeastParser::parse(Rule::file, &buf);
 
-        if let Err(err) = parsing_result {
-            bail!("{}", err);
-        }
-
-        let parsed_file = parsing_result.unwrap();
+        let parsed_file = match parsing_result {
+            Err(err) => bail!("{}", err),
+            Ok(res) => res,
+        };
 
         let mut imports = Vec::new();
         let mut exports = Vec::new();
