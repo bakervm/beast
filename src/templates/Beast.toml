@@ -2,7 +2,7 @@
 
 [program]
 name = "program_name"
-target_version = "0.9.0" # the version of the melon library used by the target
+target_version = "0.10.0" # the version of the melon library used by the target
 system_id = "__DEBUG__"
 
 # [signals]
