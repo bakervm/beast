@@ -17,6 +17,7 @@ mod ast;
 mod ast_gen;
 mod compiler;
 mod config;
+mod defaults;
 mod library;
 mod parser;
 
@@ -42,7 +43,15 @@ enum Opt {
         path: PathBuf,
     },
     #[structopt(name = "build", about = "builds the current project")]
-    Build,
+    Build {
+        #[structopt(
+            long = "emit-func-map",
+            help = "emits the corresponding function-map for the current build"
+        )]
+        emit_func_map: bool,
+        #[structopt(long = "emit-ast", help = "emits the corresponding AST for the current build")]
+        emit_ast: bool,
+    },
 }
 
 fn main() {
@@ -59,14 +68,17 @@ fn run() -> Result<()> {
     let opt = Opt::from_args();
 
     match opt {
-        Opt::Build => build()?,
+        Opt::Build {
+            emit_func_map,
+            emit_ast,
+        } => build(emit_func_map, emit_ast)?,
         Opt::Init { path } => init(&path)?,
     }
 
     Ok(())
 }
 
-fn build() -> Result<()> {
+fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
     let config_file = PathBuf::from(CONFIG_FILE_NAME);
 
     ensure!(
@@ -77,18 +89,17 @@ fn build() -> Result<()> {
 
     let config = Config::from_file(config_file)?;
 
-    let entry_point = config
-        .clone()
-        .compilation
-        .unwrap_or_default()
+    let compilation = config.compilation.clone();
+
+    let entry_point = compilation
         .entry_point
-        .unwrap_or(ast_gen::BEAST_DEFAULT_ENTRY_POINT_MODULE.into());
+        .unwrap_or(defaults::DEFAULT_BIN_ENTRY_POINT_MODULE.into());
 
     let name = config.program.name.clone();
 
     let now = Instant::now();
 
-    let program = Compiler::compile(entry_point, config)?;
+    let program = Compiler::compile(entry_point, config, emit_func_map, emit_ast)?;
 
     println!(
         "Compilation finished. Took {} seconds",
@@ -107,20 +118,22 @@ fn init(path: &PathBuf) -> Result<()> {
     ensure!(!path.exists(), "directory already exists");
 
     fs::create_dir_all(path.join(TARGET_DIRECTORY))?;
-    fs::create_dir_all(path.join(ast_gen::BEAST_DEFAULT_LIB_PATH))?;
-    fs::create_dir_all(path.join(ast_gen::BEAST_DEFAULT_INCLUDE_PATH))?;
+    fs::create_dir_all(path.join(defaults::DEFAULT_LIB_PATH))?;
+    fs::create_dir_all(path.join(defaults::DEFAULT_INCLUDE_PATH))?;
 
-    let config_data = include_bytes!("templates/Beast.template.toml");
-    let main_file_data = include_bytes!("templates/main.template.bst");
+    let config_data = include_bytes!("templates/Beast.toml");
+    let main_file_data = include_bytes!("templates/main.bst");
+    let gitignore_data = include_bytes!("templates/.gitignore");
 
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
     config_file.write_all(&config_data[..])?;
 
-    let mut main_file_file = File::create(
-        path.join(ast_gen::BEAST_DEFAULT_INCLUDE_PATH)
-            .join("main.bst"),
-    )?;
+    let mut main_file_file =
+        File::create(path.join(defaults::DEFAULT_INCLUDE_PATH).join("main.bst"))?;
     main_file_file.write_all(&main_file_data[..])?;
+
+    let mut gitignore = File::create(path.join(".gitignore"))?;
+    gitignore.write_all(&gitignore_data[..])?;
 
     println!("New project successfully initialized at {:?}", path);
 

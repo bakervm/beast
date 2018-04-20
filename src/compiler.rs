@@ -2,10 +2,11 @@ use ast::{
     Argument, Ast, Const, Export, Func, If, IfCond, Import, Instruction as BeastInstruction,
     Module, While,
 };
-use ast_gen::{self, AstGen};
+use ast_gen::AstGen;
 use config::Config;
+use defaults;
 use library::Lib;
-use melon::{Instruction as MelonInstruction, Program, typedef::*};
+use melon::{typedef::*, Instruction as MelonInstruction, Program};
 use std::collections::BTreeMap;
 
 const PRIVATE_PREFIX: &str = "PRIVATE__";
@@ -35,16 +36,25 @@ impl Compiler {
         Compiler { ast, config }
     }
 
-    pub fn compile(root_module: String, config: Config) -> Result<Program> {
+    pub fn compile(
+        root_module: String,
+        config: Config,
+        emit_func_map: bool,
+        emit_ast: bool,
+    ) -> Result<Program> {
         let ast = AstGen::gen(root_module.clone(), config.clone())?;
 
+        if emit_ast {
+            println!("{:#?}", ast);
+        }
+
         let mut compiler = Compiler::new(config, ast);
-        let program = compiler.build(root_module)?;
+        let program = compiler.build(root_module, emit_func_map)?;
 
         Ok(program)
     }
 
-    fn build(&mut self, root_module: String) -> Result<Program> {
+    fn build(&mut self, root_module: String, emit_func_map: bool) -> Result<Program> {
         let modules = self.ast.modules.clone();
 
         let mut meta_module_map = BTreeMap::new();
@@ -71,8 +81,6 @@ impl Compiler {
                             &path,
                         )?;
 
-                        meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::Ret));
-
                         let exported_func = exports.iter().find(|exp| exp.origin_name == func.name);
 
                         let mut func_name = if let Some(exp) = exported_func {
@@ -81,10 +89,11 @@ impl Compiler {
                             format!("{}{}", PRIVATE_PREFIX, func.name)
                         };
 
-                        if module_name == root_module
-                            && func.name == ast_gen::BEAST_ENTRY_POINT_FUNC
-                        {
-                            func_name = ast_gen::BEAST_ENTRY_POINT_FUNC.into();
+                        if module_name == root_module && func.name == defaults::ENTRY_POINT_FUNC {
+                            func_name = defaults::ENTRY_POINT_FUNC.into();
+                            meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::SysCall(0)));
+                        } else {
+                            meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::Ret));
                         }
 
                         meta_func_map.insert(func_name, meta_instr);
@@ -137,6 +146,10 @@ impl Compiler {
             module_map.insert(meta_module_name, final_func_map);
         }
 
+        if emit_func_map {
+            println!("{:#?}", module_map);
+        }
+
         ensure!(
             meta_instr_vec.len() <= (UInt::max_value() as usize),
             "program has too many instructions ({}). Maximum number of instructions: {}",
@@ -168,18 +181,18 @@ impl Compiler {
         }
 
         let entry_func_map = module_map
-            .get(ast_gen::BEAST_DEFAULT_ENTRY_POINT_MODULE)
+            .get(defaults::DEFAULT_BIN_ENTRY_POINT_MODULE)
             .ok_or(format_err!(
-                "unable to find module {:?}",
-                ast_gen::BEAST_DEFAULT_ENTRY_POINT_MODULE
+                "unable to find entry module {:?}",
+                defaults::DEFAULT_BIN_ENTRY_POINT_MODULE
             ))?;
 
-        let entry_func_addr = entry_func_map.get(ast_gen::BEAST_ENTRY_POINT_FUNC).ok_or(
-            format_err!(
-                "unable to find function {:?}",
-                ast_gen::BEAST_ENTRY_POINT_FUNC
-            ),
-        )?;
+        let entry_func_addr = entry_func_map
+            .get(defaults::ENTRY_POINT_FUNC)
+            .ok_or(format_err!(
+                "unable to find entry function {:?}",
+                defaults::ENTRY_POINT_FUNC
+            ))?;
 
         Ok(Program {
             target_version: self.config.program.target_version.clone(),
@@ -410,15 +423,12 @@ impl Compiler {
                     let real_signal = if signal == "halt" {
                         0
                     } else {
-                        let signals = self.config
-                            .clone()
-                            .signals
-                            .ok_or(format_err!("no signals were given"))?;
+                        ensure!(self.config.signals.len() > 0, "no signals were given");
 
-                        *signals.get(&signal).ok_or(format_err!(
+                        *self.config.signals.get(&signal).ok_or(format_err!(
                             "undefined signal {:?}. Available signals are {:?}",
                             signal,
-                            signals.keys().cloned().collect::<Vec<_>>()
+                            self.config.signals.keys().cloned().collect::<Vec<_>>()
                         ))?
                     };
 

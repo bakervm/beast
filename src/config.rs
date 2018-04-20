@@ -15,16 +15,20 @@ pub struct Program {
 pub struct Compilation {
     pub entry_point: Option<String>,
     /// The paths to look for libraries
-    pub lib: Option<Vec<String>>,
+    #[serde(default, rename = "lib")]
+    pub lib_dirs: Vec<String>,
     /// The paths to look for files to include
-    pub include: Option<Vec<String>>,
+    #[serde(default, rename = "include")]
+    pub include_dirs: Vec<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     pub program: Program,
-    pub compilation: Option<Compilation>,
-    pub signals: Option<BTreeMap<String, u16>>,
+    #[serde(default)]
+    pub compilation: Compilation,
+    #[serde(default)]
+    pub signals: BTreeMap<String, u16>,
 }
 
 impl Config {
@@ -46,7 +50,7 @@ mod tests {
 
     #[test]
     fn load_config() {
-        const FILE_NAME: &str = "Beast.toml";
+        const FILE_NAME: &str = "test/Beast.toml";
 
         let config = Config::from_file(FILE_NAME).unwrap();
 

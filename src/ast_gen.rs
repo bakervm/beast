@@ -1,5 +1,6 @@
 use ast::*;
 use config::Config;
+use defaults;
 use failure::ResultExt;
 use library::Lib;
 use melon::{typedef::*, IntegerType, Register};
@@ -14,12 +15,8 @@ use std::{
     thread,
 };
 
-const BEAST_SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
-const BEAST_LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
-pub const BEAST_DEFAULT_LIB_PATH: &str = "lib";
-pub const BEAST_DEFAULT_INCLUDE_PATH: &str = "src";
-pub const BEAST_DEFAULT_ENTRY_POINT_MODULE: &str = "main";
-pub const BEAST_ENTRY_POINT_FUNC: &str = "$main";
+const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
+const LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
 
 #[derive(Clone)]
 pub struct AstGen {
@@ -30,17 +27,11 @@ pub struct AstGen {
 
 impl AstGen {
     fn new(config: Config) -> AstGen {
-        let compilation = config.compilation.clone().unwrap_or_default();
+        let mut lib = config.compilation.lib_dirs.clone();
+        lib.push(defaults::DEFAULT_LIB_PATH.into());
 
-        let lib = compilation
-            .lib
-            .clone()
-            .unwrap_or(vec![BEAST_DEFAULT_LIB_PATH.into()]);
-
-        let include = compilation
-            .include
-            .clone()
-            .unwrap_or(vec![BEAST_DEFAULT_INCLUDE_PATH.into()]);
+        let mut include = config.compilation.include_dirs.clone();
+        include.push(defaults::DEFAULT_INCLUDE_PATH.into());
 
         AstGen {
             config: config,
@@ -135,11 +126,10 @@ impl AstGen {
 
         let parsing_result = BeastParser::parse(Rule::file, &buf);
 
-        if let Err(err) = parsing_result {
-            bail!("{}", err);
-        }
-
-        let parsed_file = parsing_result.unwrap();
+        let parsed_file = match parsing_result {
+            Err(err) => bail!("{}", err),
+            Ok(res) => res,
+        };
 
         let mut imports = Vec::new();
         let mut exports = Vec::new();
@@ -546,13 +536,13 @@ impl AstGen {
 
         let base_path: PathBuf = orig_module.split('.').collect();
 
-        let blib_module_name = base_path.with_extension(BEAST_LIB_FILE_EXTENSIONS[0]);
+        let blib_module_name = base_path.with_extension(LIB_FILE_EXTENSIONS[0]);
 
-        let bl_module_name = base_path.with_extension(BEAST_LIB_FILE_EXTENSIONS[1]);
+        let bl_module_name = base_path.with_extension(LIB_FILE_EXTENSIONS[1]);
 
-        let beast_module_name = base_path.with_extension(BEAST_SOURCE_FILE_EXTENSIONS[0]);
+        let beast_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[0]);
 
-        let bst_module_name = base_path.with_extension(BEAST_SOURCE_FILE_EXTENSIONS[1]);
+        let bst_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[1]);
 
         let found_lib = self.lib
             .iter()
@@ -590,4 +580,20 @@ impl AstGen {
 enum ModuleSource {
     Module(PathBuf),
     Lib(Lib),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_data() {
+        const MODULE_NAME: &str = "templates.main";
+
+        let config = Config::from_file("src/templates/Beast.toml").unwrap();
+
+        let mut ast_gen = AstGen::new(config);
+
+        let _ = ast_gen.module(MODULE_NAME.to_string());
+    }
 }
