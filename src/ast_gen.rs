@@ -446,7 +446,11 @@ impl AstGen {
                     instr_vec.push(instr);
                 }
 
-                Ok(Expr::While(While(condition, real_type, instr_vec)))
+                Ok(Expr::While(While {
+                    cond: condition,
+                    type_t: real_type,
+                    exprs: instr_vec,
+                }))
             }
             Rule::if_cond => {
                 let cond = inner.next().unwrap();
@@ -485,7 +489,12 @@ impl AstGen {
                     instr_vec.push(instr);
                 }
 
-                Ok(Expr::If(If(condition, real_type, instr_vec, else_branch)))
+                Ok(Expr::If(If {
+                    cond: condition,
+                    type_t: real_type,
+                    exprs: instr_vec,
+                    else_exprs: else_branch,
+                }))
             }
             _ => unreachable!(),
         }
