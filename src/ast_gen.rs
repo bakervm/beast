@@ -428,10 +428,10 @@ impl AstGen {
                 let cond = inner.next().unwrap();
 
                 let condition = match cond.as_rule() {
-                    Rule::greater => IfCond::Positive,
-                    Rule::less => IfCond::Negative,
-                    Rule::equal => IfCond::Zero,
-                    Rule::unequal => IfCond::NotZero,
+                    Rule::greater => Condition::Positive,
+                    Rule::less => Condition::Negative,
+                    Rule::equal => Condition::Zero,
+                    Rule::unequal => Condition::NotZero,
                     _ => unreachable!(),
                 };
 
@@ -452,10 +452,10 @@ impl AstGen {
                 let cond = inner.next().unwrap();
 
                 let condition = match cond.as_rule() {
-                    Rule::greater => IfCond::Positive,
-                    Rule::less => IfCond::Negative,
-                    Rule::equal => IfCond::Zero,
-                    Rule::unequal => IfCond::NotZero,
+                    Rule::greater => Condition::Positive,
+                    Rule::less => Condition::Negative,
+                    Rule::equal => Condition::Zero,
+                    Rule::unequal => Condition::NotZero,
                     _ => unreachable!(),
                 };
 

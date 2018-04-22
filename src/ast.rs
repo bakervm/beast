@@ -29,7 +29,7 @@ pub enum Argument<T> {
 }
 
 #[derive(Debug, Clone)]
-pub enum IfCond {
+pub enum Condition {
     Positive,
     Negative,
     Zero,
@@ -38,14 +38,14 @@ pub enum IfCond {
 
 #[derive(Debug, Clone)]
 pub struct If(
-    pub IfCond,
+    pub Condition,
     pub IntegerType,
     pub Vec<Expr>,
     pub Option<Vec<Expr>>,
 );
 
 #[derive(Debug, Clone)]
-pub struct While(pub IfCond, pub IntegerType, pub Vec<Expr>);
+pub struct While(pub Condition, pub IntegerType, pub Vec<Expr>);
 
 #[derive(Debug, Clone)]
 pub struct Func {

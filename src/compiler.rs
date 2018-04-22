@@ -1,4 +1,4 @@
-use ast::{Argument, Ast, Const, Export, Expr, Func, If, IfCond, Import, Module, While};
+use ast::{Argument, Ast, Condition, Const, Export, Expr, Func, If, Import, Module, While};
 use ast_gen::AstGen;
 use config::Config;
 use defaults;
@@ -224,10 +224,10 @@ impl Compiler {
                     let meta_len = meta_instrs.len() as u16;
 
                     meta_vec.push(MetaInstr::ActualInstr(match cond {
-                        IfCond::Positive => Instruction::Jn(true, meta_len + 2),
-                        IfCond::Negative => Instruction::Jp(true, meta_len + 2),
-                        IfCond::Zero => Instruction::Jnz(true, meta_len + 2),
-                        IfCond::NotZero => Instruction::Jz(true, meta_len + 2),
+                        Condition::Positive => Instruction::Jn(true, meta_len + 2),
+                        Condition::Negative => Instruction::Jp(true, meta_len + 2),
+                        Condition::Zero => Instruction::Jnz(true, meta_len + 2),
+                        Condition::NotZero => Instruction::Jz(true, meta_len + 2),
                     }));
 
                     meta_vec.append(&mut meta_instrs);
@@ -274,10 +274,10 @@ impl Compiler {
                     let if_meta_len = if_meta_instrs.len() as u16;
 
                     meta_vec.push(MetaInstr::ActualInstr(match cond {
-                        IfCond::Positive => Instruction::Jn(true, if_meta_len + 1),
-                        IfCond::Negative => Instruction::Jp(true, if_meta_len + 1),
-                        IfCond::Zero => Instruction::Jnz(true, if_meta_len + 1),
-                        IfCond::NotZero => Instruction::Jz(true, if_meta_len + 1),
+                        Condition::Positive => Instruction::Jn(true, if_meta_len + 1),
+                        Condition::Negative => Instruction::Jp(true, if_meta_len + 1),
+                        Condition::Zero => Instruction::Jnz(true, if_meta_len + 1),
+                        Condition::NotZero => Instruction::Jz(true, if_meta_len + 1),
                     }));
 
                     meta_vec.append(&mut if_meta_instrs);
