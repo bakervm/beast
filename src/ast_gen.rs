@@ -3,7 +3,7 @@ use config::Config;
 use defaults;
 use failure::ResultExt;
 use library::Lib;
-use melon::{typedef::*, IntegerType, Register};
+use melon::{typedef::*, Instruction, IntegerType, Register};
 use parser::{BeastParser, Rule};
 use pest::{iterators::Pair, Parser};
 use std::{
@@ -229,7 +229,7 @@ impl AstGen {
         })
     }
 
-    fn instr(&mut self, pair: Pair<Rule>) -> Result<Instruction> {
+    fn instr(&mut self, pair: Pair<Rule>) -> Result<Expr> {
         let mut pairs = pair.into_inner();
 
         let plain_instr = pairs.next().unwrap();
@@ -245,18 +245,10 @@ impl AstGen {
                     Rule::constant_id => {
                         let arg = raw_arg.as_str();
                         let inst = match real_type {
-                            IntegerType::U8 => {
-                                Instruction::PushConstU8(Argument::Constant(arg.into()))
-                            }
-                            IntegerType::U16 => {
-                                Instruction::PushConstU16(Argument::Constant(arg.into()))
-                            }
-                            IntegerType::I8 => {
-                                Instruction::PushConstI8(Argument::Constant(arg.into()))
-                            }
-                            IntegerType::I16 => {
-                                Instruction::PushConstI16(Argument::Constant(arg.into()))
-                            }
+                            IntegerType::U8 => Expr::PushConstU8(Argument::Constant(arg.into())),
+                            IntegerType::U16 => Expr::PushConstU16(Argument::Constant(arg.into())),
+                            IntegerType::I8 => Expr::PushConstI8(Argument::Constant(arg.into())),
+                            IntegerType::I16 => Expr::PushConstI16(Argument::Constant(arg.into())),
                         };
 
                         Ok(inst)
@@ -264,18 +256,18 @@ impl AstGen {
                     Rule::literal => {
                         let arg = raw_arg.as_str();
                         let inst = match real_type {
-                            IntegerType::U8 => Instruction::PushConstU8(Argument::Literal(
-                                arg.parse().or_else(|_| u8::from_str_radix(&arg[2..], 16))?,
-                            )),
-                            IntegerType::U16 => Instruction::PushConstU16(Argument::Literal(
-                                arg.parse().or_else(|_| u16::from_str_radix(&arg[2..], 16))?,
-                            )),
-                            IntegerType::I8 => Instruction::PushConstI8(Argument::Literal(
-                                arg.parse().or_else(|_| i8::from_str_radix(&arg[2..], 16))?,
-                            )),
-                            IntegerType::I16 => Instruction::PushConstI16(Argument::Literal(
-                                arg.parse().or_else(|_| i16::from_str_radix(&arg[2..], 16))?,
-                            )),
+                            IntegerType::U8 => Expr::PushConstU8(
+                                Argument::Literal(arg.parse().or_else(|_| u8::from_str_radix(&arg[2..], 16))?),
+                            ),
+                            IntegerType::U16 => Expr::PushConstU16(
+                                Argument::Literal(arg.parse().or_else(|_| u16::from_str_radix(&arg[2..], 16))?),
+                            ),
+                            IntegerType::I8 => Expr::PushConstI8(
+                                Argument::Literal(arg.parse().or_else(|_| i8::from_str_radix(&arg[2..], 16))?),
+                            ),
+                            IntegerType::I16 => Expr::PushConstI16(
+                                Argument::Literal(arg.parse().or_else(|_| i16::from_str_radix(&arg[2..], 16))?),
+                            ),
                         };
 
                         Ok(inst)
@@ -286,76 +278,78 @@ impl AstGen {
             Rule::add => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Add(real_type))
+                Ok(Expr::ActualInstr(Instruction::Add(real_type)))
             }
             Rule::sub => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Sub(real_type))
+                Ok(Expr::ActualInstr(Instruction::Sub(real_type)))
             }
             Rule::mul => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Mul(real_type))
+                Ok(Expr::ActualInstr(Instruction::Mul(real_type)))
             }
             Rule::div => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Div(real_type))
+                Ok(Expr::ActualInstr(Instruction::Div(real_type)))
             }
             Rule::shr => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Shr(real_type))
+                Ok(Expr::ActualInstr(Instruction::Shr(real_type)))
             }
             Rule::shl => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Shl(real_type))
+                Ok(Expr::ActualInstr(Instruction::Shl(real_type)))
             }
             Rule::and => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::And(real_type))
+                Ok(Expr::ActualInstr(Instruction::And(real_type)))
             }
             Rule::or => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Or(real_type))
+                Ok(Expr::ActualInstr(Instruction::Or(real_type)))
             }
             Rule::xor => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Xor(real_type))
+                Ok(Expr::ActualInstr(Instruction::Xor(real_type)))
             }
             Rule::not => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Not(real_type))
+                Ok(Expr::ActualInstr(Instruction::Not(real_type)))
             }
             Rule::neg => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Neg(real_type))
+                Ok(Expr::ActualInstr(Instruction::Neg(real_type)))
             }
             Rule::inc => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Inc(real_type))
+                Ok(Expr::ActualInstr(Instruction::Inc(real_type)))
             }
             Rule::dec => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Dec(real_type))
+                Ok(Expr::ActualInstr(Instruction::Dec(real_type)))
             }
-            Rule::u8_promote => Ok(Instruction::U8Promote),
-            Rule::u16_demote => Ok(Instruction::U16Demote),
-            Rule::i8_promote => Ok(Instruction::I8Promote),
-            Rule::i16_demote => Ok(Instruction::I16Demote),
+            Rule::u8_promote => Ok(Expr::ActualInstr(Instruction::U8Promote)),
+            Rule::u16_demote => Ok(Expr::ActualInstr(Instruction::U16Demote)),
+            Rule::i8_promote => Ok(Expr::ActualInstr(Instruction::I8Promote)),
+            Rule::i16_demote => Ok(Expr::ActualInstr(Instruction::I16Demote)),
             Rule::reg => {
                 let raw_register = inner.next().unwrap().as_str();
 
-                Ok(Instruction::LoadReg(self.register(raw_register)?))
+                Ok(Expr::ActualInstr(Instruction::LoadReg(
+                    self.register(raw_register)?,
+                )))
             }
             Rule::load => {
                 let raw_type = inner.next().unwrap().as_str();
@@ -371,9 +365,9 @@ impl AstGen {
                             .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?)
                     };
 
-                    Ok(Instruction::Load(real_type, arg))
+                    Ok(Expr::Load(real_type, arg))
                 } else {
-                    Ok(Instruction::LoadIndirect(real_type))
+                    Ok(Expr::ActualInstr(Instruction::LoadIndirect(real_type)))
                 }
             }
             Rule::store => {
@@ -390,30 +384,30 @@ impl AstGen {
                             .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?)
                     };
 
-                    Ok(Instruction::Store(real_type, arg))
+                    Ok(Expr::Store(real_type, arg))
                 } else {
-                    Ok(Instruction::StoreIndirect(real_type))
+                    Ok(Expr::ActualInstr(Instruction::StoreIndirect(real_type)))
                 }
             }
             Rule::dup => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Dup(real_type))
+                Ok(Expr::ActualInstr(Instruction::Dup(real_type)))
             }
             Rule::drop => {
                 let raw_type = inner.next().unwrap().as_str();
                 let real_type = self.type_(raw_type);
-                Ok(Instruction::Drop(real_type))
+                Ok(Expr::ActualInstr(Instruction::Drop(real_type)))
             }
             Rule::sys => {
                 let signal = inner.next().unwrap().as_str();
-                Ok(Instruction::Sys(signal.into()))
+                Ok(Expr::Sys(signal.into()))
             }
             Rule::call => {
                 let func_id = inner.next().unwrap().as_str();
-                Ok(Instruction::Call(func_id.into()))
+                Ok(Expr::Call(func_id.into()))
             }
-            Rule::ret => Ok(Instruction::Ret),
+            Rule::ret => Ok(Expr::ActualInstr(Instruction::Ret)),
             Rule::alloc => {
                 let raw_num_const = inner.next().unwrap();
 
@@ -427,9 +421,9 @@ impl AstGen {
                         .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?)
                 };
 
-                Ok(Instruction::Alloc(arg))
+                Ok(Expr::Alloc(arg))
             }
-            Rule::free => Ok(Instruction::Free),
+            Rule::free => Ok(Expr::ActualInstr(Instruction::Free)),
             Rule::while_loop => {
                 let cond = inner.next().unwrap();
 
@@ -452,7 +446,7 @@ impl AstGen {
                     instr_vec.push(instr);
                 }
 
-                Ok(Instruction::While(While(condition, real_type, instr_vec)))
+                Ok(Expr::While(While(condition, real_type, instr_vec)))
             }
             Rule::if_cond => {
                 let cond = inner.next().unwrap();
@@ -491,12 +485,7 @@ impl AstGen {
                     instr_vec.push(instr);
                 }
 
-                Ok(Instruction::If(If(
-                    condition,
-                    real_type,
-                    instr_vec,
-                    else_branch,
-                )))
+                Ok(Expr::If(If(condition, real_type, instr_vec, else_branch)))
             }
             _ => unreachable!(),
         }
