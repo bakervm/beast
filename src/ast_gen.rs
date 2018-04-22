@@ -108,14 +108,9 @@ impl AstGen {
     fn module(&mut self, module_path: String) -> Result<Module> {
         let module = self.discover_module(module_path.clone())?;
 
-        if let ModuleSource::Lib(lib) = module {
-            return Ok(Module::Lib(lib));
-        }
-
-        let module_file = if let ModuleSource::Module(module_file) = module {
-            module_file
-        } else {
-            unreachable!()
+        let module_file = match module {
+            ModuleSource::Module(module_file) => module_file,
+            ModuleSource::Lib(lib) => return Ok(Module::Lib(lib)),
         };
 
         let mut file = File::open(module_file)?;
