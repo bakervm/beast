@@ -1,50 +1,22 @@
 use library::Lib;
-use melon::{IntegerType, Register, typedef::*};
+use melon::{typedef::*, Instruction, IntegerType};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
-pub enum Instruction {
-    Add(IntegerType),
-    Sub(IntegerType),
-    Mul(IntegerType),
-    Div(IntegerType),
-    Shr(IntegerType),
-    Shl(IntegerType),
-    And(IntegerType),
-    Or(IntegerType),
-    Xor(IntegerType),
-    Not(IntegerType),
-    Neg(IntegerType),
-    Inc(IntegerType),
-    Dec(IntegerType),
-
-    U8Promote,
-    U16Demote,
-    I8Promote,
-    I16Demote,
+pub enum Expr {
+    ActualInstr(Instruction),
 
     PushConstU8(Argument<SmallUInt>),
     PushConstU16(Argument<UInt>),
     PushConstI8(Argument<SmallInt>),
     PushConstI16(Argument<Int>),
 
-    LoadReg(Register),
-
     Load(IntegerType, Argument<Address>),
-    LoadIndirect(IntegerType),
     Store(IntegerType, Argument<Address>),
-    StoreIndirect(IntegerType),
-
-    Dup(IntegerType),
-    Drop(IntegerType),
 
     Sys(String),
-
     Call(String),
-    Ret,
-
     Alloc(Argument<UInt>),
-    Free,
 
     While(While),
     If(If),
@@ -57,7 +29,7 @@ pub enum Argument<T> {
 }
 
 #[derive(Debug, Clone)]
-pub enum IfCond {
+pub enum Condition {
     Positive,
     Negative,
     Zero,
@@ -66,19 +38,19 @@ pub enum IfCond {
 
 #[derive(Debug, Clone)]
 pub struct If(
-    pub IfCond,
+    pub Condition,
     pub IntegerType,
-    pub Vec<Instruction>,
-    pub Option<Vec<Instruction>>,
+    pub Vec<Expr>,
+    pub Option<Vec<Expr>>,
 );
 
 #[derive(Debug, Clone)]
-pub struct While(pub IfCond, pub IntegerType, pub Vec<Instruction>);
+pub struct While(pub Condition, pub IntegerType, pub Vec<Expr>);
 
 #[derive(Debug, Clone)]
 pub struct Func {
     pub name: String,
-    pub instr: Vec<Instruction>,
+    pub instr: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]

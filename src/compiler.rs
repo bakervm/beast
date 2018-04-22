@@ -1,23 +1,17 @@
-use ast::{
-    Argument, Ast, Const, Export, Func, If, IfCond, Import, Instruction as BeastInstruction,
-    Module, While,
-};
+use ast::{Argument, Ast, Condition, Const, Export, Expr, Func, If, Import, Module, While};
 use ast_gen::AstGen;
 use config::Config;
 use defaults;
 use library::Lib;
-use melon::{typedef::*, Instruction as MelonInstruction, Program};
+use melon::{typedef::*, Instruction, Program};
 use std::collections::BTreeMap;
 
 const PRIVATE_PREFIX: &str = "PRIVATE__";
 
 #[derive(Debug)]
 enum MetaInstr {
-    ActualInstr(MelonInstruction),
-    Call {
-        this_func: String,
-        in_this_module: String,
-    },
+    ActualInstr(Instruction),
+    Call { func: String, module: String },
 }
 
 #[derive(Debug)]
@@ -91,9 +85,9 @@ impl Compiler {
 
                         if module_name == root_module && func.name == defaults::ENTRY_POINT_FUNC {
                             func_name = defaults::ENTRY_POINT_FUNC.into();
-                            meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::SysCall(0)));
+                            meta_instr.push(MetaInstr::ActualInstr(Instruction::SysCall(0)));
                         } else {
-                            meta_instr.push(MetaInstr::ActualInstr(MelonInstruction::Ret));
+                            meta_instr.push(MetaInstr::ActualInstr(Instruction::Ret));
                         }
 
                         meta_func_map.insert(func_name, meta_instr);
@@ -161,19 +155,16 @@ impl Compiler {
         for meta_instr in meta_instr_vec {
             let instr = match meta_instr {
                 MetaInstr::ActualInstr(instr) => instr,
-                MetaInstr::Call {
-                    this_func,
-                    in_this_module,
-                } => {
+                MetaInstr::Call { func, module } => {
                     let func_map = module_map
-                        .get(&in_this_module)
-                        .ok_or(format_err!("unable to find module {:?}", in_this_module))?;
+                        .get(&module)
+                        .ok_or(format_err!("unable to find module {:?}", module))?;
 
                     let func_addr = func_map
-                        .get(&this_func)
-                        .ok_or(format_err!("unable to find function {:?}", this_func))?;
+                        .get(&func)
+                        .ok_or(format_err!("unable to find function {:?}", func))?;
 
-                    MelonInstruction::Call(*func_addr as u16)
+                    Instruction::Call(*func_addr as u16)
                 }
             };
 
@@ -205,7 +196,7 @@ impl Compiler {
 
     fn to_meta_instr(
         &mut self,
-        instrs: Vec<BeastInstruction>,
+        instrs: Vec<Expr>,
         exports: &Vec<Export>,
         consts: &Vec<Const>,
         imports: &Vec<Import>,
@@ -216,10 +207,10 @@ impl Compiler {
 
         for instr in instrs {
             match instr.clone() {
-                BeastInstruction::While(whl) => {
+                Expr::While(whl) => {
                     let While(cond, int_type, while_instrs) = whl.clone();
 
-                    meta_vec.push(MetaInstr::ActualInstr(MelonInstruction::Cmp(int_type)));
+                    meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(int_type)));
 
                     let mut meta_instrs = self.to_meta_instr(
                         while_instrs,
@@ -233,23 +224,23 @@ impl Compiler {
                     let meta_len = meta_instrs.len() as u16;
 
                     meta_vec.push(MetaInstr::ActualInstr(match cond {
-                        IfCond::Positive => MelonInstruction::Jn(true, meta_len + 2),
-                        IfCond::Negative => MelonInstruction::Jp(true, meta_len + 2),
-                        IfCond::Zero => MelonInstruction::Jnz(true, meta_len + 2),
-                        IfCond::NotZero => MelonInstruction::Jz(true, meta_len + 2),
+                        Condition::Positive => Instruction::Jn(true, meta_len + 2),
+                        Condition::Negative => Instruction::Jp(true, meta_len + 2),
+                        Condition::Zero => Instruction::Jnz(true, meta_len + 2),
+                        Condition::NotZero => Instruction::Jz(true, meta_len + 2),
                     }));
 
                     meta_vec.append(&mut meta_instrs);
-                    meta_vec.push(MetaInstr::ActualInstr(MelonInstruction::Jmp(
+                    meta_vec.push(MetaInstr::ActualInstr(Instruction::Jmp(
                         false,
                         meta_len + 2,
                     )));
                     continue;
                 }
-                BeastInstruction::If(whether) => {
+                Expr::If(whether) => {
                     let If(cond, int_type, if_instrs, else_instrs) = whether.clone();
 
-                    meta_vec.push(MetaInstr::ActualInstr(MelonInstruction::Cmp(int_type)));
+                    meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(int_type)));
 
                     let mut if_meta_instrs = self.to_meta_instr(
                         if_instrs,
@@ -274,7 +265,7 @@ impl Compiler {
 
                         let else_meta_len = else_meta_instrs.len() as u16;
 
-                        if_meta_instrs.push(MetaInstr::ActualInstr(MelonInstruction::Jmp(
+                        if_meta_instrs.push(MetaInstr::ActualInstr(Instruction::Jmp(
                             true,
                             else_meta_len + 1,
                         )));
@@ -283,10 +274,10 @@ impl Compiler {
                     let if_meta_len = if_meta_instrs.len() as u16;
 
                     meta_vec.push(MetaInstr::ActualInstr(match cond {
-                        IfCond::Positive => MelonInstruction::Jn(true, if_meta_len + 1),
-                        IfCond::Negative => MelonInstruction::Jp(true, if_meta_len + 1),
-                        IfCond::Zero => MelonInstruction::Jnz(true, if_meta_len + 1),
-                        IfCond::NotZero => MelonInstruction::Jz(true, if_meta_len + 1),
+                        Condition::Positive => Instruction::Jn(true, if_meta_len + 1),
+                        Condition::Negative => Instruction::Jp(true, if_meta_len + 1),
+                        Condition::Zero => Instruction::Jnz(true, if_meta_len + 1),
+                        Condition::NotZero => Instruction::Jz(true, if_meta_len + 1),
                     }));
 
                     meta_vec.append(&mut if_meta_instrs);
@@ -297,127 +288,63 @@ impl Compiler {
             }
 
             let meta_instr = match instr {
-                BeastInstruction::Add(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Add(integer_type))
-                }
-                BeastInstruction::Sub(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Sub(integer_type))
-                }
-                BeastInstruction::Mul(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Mul(integer_type))
-                }
-                BeastInstruction::Div(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Div(integer_type))
-                }
-                BeastInstruction::Shr(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Shr(integer_type))
-                }
-                BeastInstruction::Shl(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Shl(integer_type))
-                }
-                BeastInstruction::And(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::And(integer_type))
-                }
-                BeastInstruction::Or(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Or(integer_type))
-                }
-                BeastInstruction::Xor(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Xor(integer_type))
-                }
-                BeastInstruction::Not(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Not(integer_type))
-                }
-                BeastInstruction::Neg(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Neg(integer_type))
-                }
-                BeastInstruction::Inc(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Inc(integer_type))
-                }
-                BeastInstruction::Dec(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Dec(integer_type))
-                }
-                BeastInstruction::U8Promote => MetaInstr::ActualInstr(MelonInstruction::U8Promote),
-                BeastInstruction::U16Demote => MetaInstr::ActualInstr(MelonInstruction::U16Demote),
-                BeastInstruction::I8Promote => MetaInstr::ActualInstr(MelonInstruction::I8Promote),
-                BeastInstruction::I16Demote => MetaInstr::ActualInstr(MelonInstruction::I16Demote),
-                BeastInstruction::PushConstU8(arg) => match arg {
+                Expr::PushConstU8(arg) => match arg {
                     Argument::Constant(id) => {
                         let value = Compiler::find_const(&consts, id)?;
 
-                        MetaInstr::ActualInstr(MelonInstruction::PushConstU8(value as u8))
+                        MetaInstr::ActualInstr(Instruction::PushConstU8(value as u8))
                     }
-                    Argument::Literal(lit) => {
-                        MetaInstr::ActualInstr(MelonInstruction::PushConstU8(lit))
-                    }
+                    Argument::Literal(lit) => MetaInstr::ActualInstr(Instruction::PushConstU8(lit)),
                 },
-                BeastInstruction::PushConstU16(arg) => match arg {
+                Expr::PushConstU16(arg) => match arg {
                     Argument::Constant(id) => {
                         let value = Compiler::find_const(&consts, id)?;
 
-                        MetaInstr::ActualInstr(MelonInstruction::PushConstU16(value as u16))
+                        MetaInstr::ActualInstr(Instruction::PushConstU16(value as u16))
                     }
                     Argument::Literal(lit) => {
-                        MetaInstr::ActualInstr(MelonInstruction::PushConstU16(lit))
+                        MetaInstr::ActualInstr(Instruction::PushConstU16(lit))
                     }
                 },
-                BeastInstruction::PushConstI8(arg) => match arg {
+                Expr::PushConstI8(arg) => match arg {
                     Argument::Constant(id) => {
                         let value = Compiler::find_const(&consts, id)?;
 
-                        MetaInstr::ActualInstr(MelonInstruction::PushConstI8(value as i8))
+                        MetaInstr::ActualInstr(Instruction::PushConstI8(value as i8))
                     }
-                    Argument::Literal(lit) => {
-                        MetaInstr::ActualInstr(MelonInstruction::PushConstI8(lit))
-                    }
+                    Argument::Literal(lit) => MetaInstr::ActualInstr(Instruction::PushConstI8(lit)),
                 },
-                BeastInstruction::PushConstI16(arg) => match arg {
+                Expr::PushConstI16(arg) => match arg {
                     Argument::Constant(id) => {
                         let value = Compiler::find_const(&consts, id)?;
 
-                        MetaInstr::ActualInstr(MelonInstruction::PushConstI16(value as i16))
+                        MetaInstr::ActualInstr(Instruction::PushConstI16(value as i16))
                     }
                     Argument::Literal(lit) => {
-                        MetaInstr::ActualInstr(MelonInstruction::PushConstI16(lit))
+                        MetaInstr::ActualInstr(Instruction::PushConstI16(lit))
                     }
                 },
-                BeastInstruction::LoadReg(reg) => {
-                    MetaInstr::ActualInstr(MelonInstruction::LoadReg(reg))
-                }
-
-                BeastInstruction::Load(integer_type, arg) => match arg {
+                Expr::Load(integer_type, arg) => match arg {
                     Argument::Constant(id) => {
                         let value = Compiler::find_const(&consts, id)?;
 
-                        MetaInstr::ActualInstr(MelonInstruction::Load(integer_type, value as u16))
+                        MetaInstr::ActualInstr(Instruction::Load(integer_type, value as u16))
                     }
                     Argument::Literal(lit) => {
-                        MetaInstr::ActualInstr(MelonInstruction::Load(integer_type, lit))
+                        MetaInstr::ActualInstr(Instruction::Load(integer_type, lit))
                     }
                 },
-                BeastInstruction::LoadIndirect(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::LoadIndirect(integer_type))
-                }
-                BeastInstruction::Store(integer_type, arg) => match arg {
+                Expr::Store(integer_type, arg) => match arg {
                     Argument::Constant(id) => {
                         let value = Compiler::find_const(&consts, id)?;
 
-                        MetaInstr::ActualInstr(MelonInstruction::Store(integer_type, value as u16))
+                        MetaInstr::ActualInstr(Instruction::Store(integer_type, value as u16))
                     }
                     Argument::Literal(lit) => {
-                        MetaInstr::ActualInstr(MelonInstruction::Store(integer_type, lit))
+                        MetaInstr::ActualInstr(Instruction::Store(integer_type, lit))
                     }
                 },
-                BeastInstruction::StoreIndirect(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::StoreIndirect(integer_type))
-                }
-
-                BeastInstruction::Dup(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Dup(integer_type))
-                }
-                BeastInstruction::Drop(integer_type) => {
-                    MetaInstr::ActualInstr(MelonInstruction::Drop(integer_type))
-                }
-                BeastInstruction::Sys(mut signal) => {
+                Expr::Sys(mut signal) => {
                     signal.remove(0);
 
                     let real_signal = if signal == "halt" {
@@ -432,14 +359,14 @@ impl Compiler {
                         ))?
                     };
 
-                    MetaInstr::ActualInstr(MelonInstruction::SysCall(real_signal))
+                    MetaInstr::ActualInstr(Instruction::SysCall(real_signal))
                 }
-                BeastInstruction::Call(func_name) => {
+                Expr::Call(func_name) => {
                     let opt_import = imports.iter().find(|import| import.alias == func_name);
                     if let Some(ref import) = opt_import {
                         MetaInstr::Call {
-                            this_func: import.origin_name.clone(),
-                            in_this_module: import.module_path.clone(),
+                            func: import.origin_name.clone(),
+                            module: import.module_path.clone(),
                         }
                     } else {
                         let opt_local = other_funcs
@@ -456,8 +383,8 @@ impl Compiler {
                             };
 
                             MetaInstr::Call {
-                                this_func: func_name,
-                                in_this_module: local_module_path.clone(),
+                                func: func_name,
+                                module: local_module_path.clone(),
                             }
                         } else {
                             bail!(
@@ -467,16 +394,15 @@ impl Compiler {
                         }
                     }
                 }
-                BeastInstruction::Ret => MetaInstr::ActualInstr(MelonInstruction::Ret),
-                BeastInstruction::Alloc(arg) => match arg {
+                Expr::Alloc(arg) => match arg {
                     Argument::Constant(id) => {
                         let value = Compiler::find_const(&consts, id)?;
 
-                        MetaInstr::ActualInstr(MelonInstruction::Alloc(value as u16))
+                        MetaInstr::ActualInstr(Instruction::Alloc(value as u16))
                     }
-                    Argument::Literal(lit) => MetaInstr::ActualInstr(MelonInstruction::Alloc(lit)),
+                    Argument::Literal(lit) => MetaInstr::ActualInstr(Instruction::Alloc(lit)),
                 },
-                BeastInstruction::Free => MetaInstr::ActualInstr(MelonInstruction::Free),
+                Expr::ActualInstr(instr) => MetaInstr::ActualInstr(instr),
                 _ => unreachable!(),
             };
 

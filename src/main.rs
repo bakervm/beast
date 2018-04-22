@@ -37,8 +37,8 @@ const CONFIG_FILE_NAME: &str = "Beast.toml";
 
 #[derive(StructOpt)]
 enum Opt {
-    #[structopt(name = "init", about = "initialize a new Beast project at the given directory")]
-    Init {
+    #[structopt(name = "new", about = "initialize a new Beast project at the given directory")]
+    New {
         #[structopt(help = "the path to the target project directory", parse(from_os_str))]
         path: PathBuf,
     },
@@ -72,7 +72,7 @@ fn run() -> Result<()> {
             emit_func_map,
             emit_ast,
         } => build(emit_func_map, emit_ast)?,
-        Opt::Init { path } => init(&path)?,
+        Opt::New { path } => new(&path)?,
     }
 
     Ok(())
@@ -114,7 +114,7 @@ fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
     Ok(())
 }
 
-fn init(path: &PathBuf) -> Result<()> {
+fn new(path: &PathBuf) -> Result<()> {
     ensure!(!path.exists(), "directory already exists");
 
     fs::create_dir_all(path.join(TARGET_DIRECTORY))?;
@@ -122,16 +122,15 @@ fn init(path: &PathBuf) -> Result<()> {
     fs::create_dir_all(path.join(defaults::DEFAULT_INCLUDE_PATH))?;
 
     let config_data = include_bytes!("templates/Beast.toml");
-    let main_file_data = include_bytes!("templates/main.bst");
-    let gitignore_data = include_bytes!("templates/.gitignore");
-
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
     config_file.write_all(&config_data[..])?;
 
+    let main_file_data = include_bytes!("templates/main.bst");
     let mut main_file_file =
         File::create(path.join(defaults::DEFAULT_INCLUDE_PATH).join("main.bst"))?;
     main_file_file.write_all(&main_file_data[..])?;
 
+    let gitignore_data = include_bytes!("templates/.gitignore");
     let mut gitignore = File::create(path.join(".gitignore"))?;
     gitignore.write_all(&gitignore_data[..])?;
 
