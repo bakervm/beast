@@ -54,7 +54,7 @@ pub struct While {
 #[derive(Debug, Clone)]
 pub struct Func {
     pub name: String,
-    pub instr: Vec<Expr>,
+    pub expr: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]

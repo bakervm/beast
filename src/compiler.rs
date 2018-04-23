@@ -67,7 +67,7 @@ impl Compiler {
 
                     for func in &funcs {
                         let mut meta_instr = self.to_meta_instr(
-                            func.instr.clone(),
+                            func.expr.clone(),
                             &exports,
                             &constants,
                             &imports,
