@@ -67,7 +67,7 @@ impl Compiler {
 
                     for func in &funcs {
                         let mut meta_instr = self.to_meta_instr(
-                            func.instr.clone(),
+                            func.expr.clone(),
                             &exports,
                             &constants,
                             &imports,
@@ -208,12 +208,16 @@ impl Compiler {
         for instr in instrs {
             match instr.clone() {
                 Expr::While(whl) => {
-                    let While(cond, int_type, while_instrs) = whl.clone();
+                    let While {
+                        cond,
+                        type_t,
+                        exprs,
+                    } = whl.clone();
 
-                    meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(int_type)));
+                    meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(type_t)));
 
                     let mut meta_instrs = self.to_meta_instr(
-                        while_instrs,
+                        exprs,
                         exports,
                         consts,
                         imports,
@@ -238,12 +242,17 @@ impl Compiler {
                     continue;
                 }
                 Expr::If(whether) => {
-                    let If(cond, int_type, if_instrs, else_instrs) = whether.clone();
+                    let If {
+                        cond,
+                        type_t,
+                        exprs,
+                        else_exprs,
+                    } = whether.clone();
 
-                    meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(int_type)));
+                    meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(type_t)));
 
                     let mut if_meta_instrs = self.to_meta_instr(
-                        if_instrs,
+                        exprs,
                         exports,
                         consts,
                         imports,
@@ -253,7 +262,7 @@ impl Compiler {
 
                     let mut else_meta_instrs = Vec::new();
 
-                    if let Some(instrs) = else_instrs {
+                    if let Some(instrs) = else_exprs {
                         else_meta_instrs = self.to_meta_instr(
                             instrs,
                             exports,

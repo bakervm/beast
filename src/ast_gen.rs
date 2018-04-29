@@ -191,15 +191,15 @@ impl AstGen {
 
         let mut instr_vec = Vec::new();
 
-        for instr in pairs {
-            let instr = self.instr(instr)?;
+        for expr in pairs {
+            let expr = self.expr(expr)?;
 
-            instr_vec.push(instr);
+            instr_vec.push(expr);
         }
 
         Ok(Func {
             name: func_name.into(),
-            instr: instr_vec,
+            expr: instr_vec,
         })
     }
 
@@ -229,7 +229,7 @@ impl AstGen {
         })
     }
 
-    fn instr(&mut self, pair: Pair<Rule>) -> Result<Expr> {
+    fn expr(&mut self, pair: Pair<Rule>) -> Result<Expr> {
         let mut pairs = pair.into_inner();
 
         let plain_instr = pairs.next().unwrap();
@@ -440,13 +440,17 @@ impl AstGen {
 
                 let mut instr_vec = Vec::new();
 
-                for instr in inner {
-                    let instr = self.instr(instr)?;
+                for expr in inner {
+                    let expr = self.expr(expr)?;
 
-                    instr_vec.push(instr);
+                    instr_vec.push(expr);
                 }
 
-                Ok(Expr::While(While(condition, real_type, instr_vec)))
+                Ok(Expr::While(While {
+                    cond: condition,
+                    type_t: real_type,
+                    exprs: instr_vec,
+                }))
             }
             Rule::if_cond => {
                 let cond = inner.next().unwrap();
@@ -466,26 +470,31 @@ impl AstGen {
 
                 let mut else_branch = None;
 
-                for instr in inner {
-                    if instr.as_rule() == Rule::else_cond {
+                for expr in inner {
+                    if expr.as_rule() == Rule::else_cond {
                         let mut else_instr_vec = Vec::new();
 
-                        for instr in instr.into_inner() {
-                            let instr = self.instr(instr)?;
+                        for expr in expr.into_inner() {
+                            let expr = self.expr(expr)?;
 
-                            else_instr_vec.push(instr);
+                            else_instr_vec.push(expr);
                         }
 
                         else_branch = Some(else_instr_vec);
                         break;
                     }
 
-                    let instr = self.instr(instr)?;
+                    let expr = self.expr(expr)?;
 
-                    instr_vec.push(instr);
+                    instr_vec.push(expr);
                 }
 
-                Ok(Expr::If(If(condition, real_type, instr_vec, else_branch)))
+                Ok(Expr::If(If {
+                    cond: condition,
+                    type_t: real_type,
+                    exprs: instr_vec,
+                    else_exprs: else_branch,
+                }))
             }
             _ => unreachable!(),
         }

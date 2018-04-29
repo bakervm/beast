@@ -37,20 +37,24 @@ pub enum Condition {
 }
 
 #[derive(Debug, Clone)]
-pub struct If(
-    pub Condition,
-    pub IntegerType,
-    pub Vec<Expr>,
-    pub Option<Vec<Expr>>,
-);
+pub struct If {
+    pub cond: Condition,
+    pub type_t: IntegerType,
+    pub exprs: Vec<Expr>,
+    pub else_exprs: Option<Vec<Expr>>,
+}
 
 #[derive(Debug, Clone)]
-pub struct While(pub Condition, pub IntegerType, pub Vec<Expr>);
+pub struct While {
+    pub cond: Condition,
+    pub type_t: IntegerType,
+    pub exprs: Vec<Expr>,
+}
 
 #[derive(Debug, Clone)]
 pub struct Func {
     pub name: String,
-    pub instr: Vec<Expr>,
+    pub expr: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]
