@@ -3,6 +3,8 @@ name = "beast"
 version = "1.0.0-alpha.0"
 description = "A build tool for the Beast high level assembly language"
 authors = ["Julian Laubstein <contact@julianlaubstein.de>"]
+license = "MIT"
+repository = "https://github.com/bakervm/beast"
 
 [dependencies]
 pest = "1"
