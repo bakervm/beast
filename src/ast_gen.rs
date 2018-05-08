@@ -7,12 +7,8 @@ use melon::{typedef::*, Instruction, IntegerType, Register};
 use parser::{BeastParser, Rule};
 use pest::{iterators::Pair, Parser};
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    fs::File,
-    io::Read,
-    path::PathBuf,
-    sync::mpsc::{self, TryRecvError},
-    thread,
+    collections::{BTreeMap, BTreeSet}, fs::File, io::Read, path::PathBuf,
+    sync::mpsc::{self, TryRecvError}, thread,
 };
 
 const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
@@ -428,10 +424,12 @@ impl AstGen {
                 let cond = inner.next().unwrap();
 
                 let condition = match cond.as_rule() {
-                    Rule::greater => Condition::Positive,
-                    Rule::less => Condition::Negative,
-                    Rule::equal => Condition::Zero,
-                    Rule::unequal => Condition::NotZero,
+                    Rule::greater => Condition::Greater,
+                    Rule::less => Condition::Less,
+                    Rule::greater_equal => Condition::GreaterOrEqual,
+                    Rule::less_equal => Condition::LessOrEqual,
+                    Rule::equal => Condition::Equal,
+                    Rule::unequal => Condition::NotEqual,
                     _ => unreachable!(),
                 };
 
@@ -456,10 +454,12 @@ impl AstGen {
                 let cond = inner.next().unwrap();
 
                 let condition = match cond.as_rule() {
-                    Rule::greater => Condition::Positive,
-                    Rule::less => Condition::Negative,
-                    Rule::equal => Condition::Zero,
-                    Rule::unequal => Condition::NotZero,
+                    Rule::greater => Condition::Greater,
+                    Rule::less => Condition::Less,
+                    Rule::greater_equal => Condition::GreaterOrEqual,
+                    Rule::less_equal => Condition::LessOrEqual,
+                    Rule::equal => Condition::Equal,
+                    Rule::unequal => Condition::NotEqual,
                     _ => unreachable!(),
                 };
 
