@@ -30,10 +30,12 @@ pub enum Argument<T> {
 
 #[derive(Debug, Clone)]
 pub enum Condition {
-    Positive,
-    Negative,
-    Zero,
-    NotZero,
+    Less,
+    Greater,
+    LessOrEqual,
+    GreaterOrEqual,
+    Equal,
+    NotEqual,
 }
 
 #[derive(Debug, Clone)]
