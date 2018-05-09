@@ -172,10 +172,10 @@ impl Compiler {
         }
 
         let entry_func_map = module_map
-            .get(defaults::DEFAULT_BIN_ENTRY_POINT_MODULE)
+            .get(defaults::BIN_ENTRY_POINT_MODULE)
             .ok_or(format_err!(
                 "unable to find entry module {:?}",
-                defaults::DEFAULT_BIN_ENTRY_POINT_MODULE
+                defaults::BIN_ENTRY_POINT_MODULE
             ))?;
 
         let entry_func_addr = entry_func_map

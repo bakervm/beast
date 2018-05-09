@@ -93,7 +93,7 @@ fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
 
     let entry_point = compilation
         .entry_point
-        .unwrap_or(defaults::DEFAULT_BIN_ENTRY_POINT_MODULE.into());
+        .unwrap_or(defaults::BIN_ENTRY_POINT_MODULE.into());
 
     let name = config.program.name.clone();
 
@@ -118,8 +118,8 @@ fn new(path: &PathBuf) -> Result<()> {
     ensure!(!path.exists(), "directory already exists");
 
     fs::create_dir_all(path.join(TARGET_DIRECTORY))?;
-    fs::create_dir_all(path.join(defaults::DEFAULT_LIB_PATH))?;
-    fs::create_dir_all(path.join(defaults::DEFAULT_INCLUDE_PATH))?;
+    fs::create_dir_all(path.join(defaults::LIB_PATH))?;
+    fs::create_dir_all(path.join(defaults::INCLUDE_PATH))?;
 
     let config_data = include_bytes!("templates/Beast.toml");
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
@@ -127,7 +127,7 @@ fn new(path: &PathBuf) -> Result<()> {
 
     let main_file_data = include_bytes!("templates/main.bst");
     let mut main_file_file =
-        File::create(path.join(defaults::DEFAULT_INCLUDE_PATH).join("main.bst"))?;
+        File::create(path.join(defaults::INCLUDE_PATH).join("main.bst"))?;
     main_file_file.write_all(&main_file_data[..])?;
 
     let gitignore_data = include_bytes!("templates/.gitignore");

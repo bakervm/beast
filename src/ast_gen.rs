@@ -24,10 +24,10 @@ pub struct AstGen {
 impl AstGen {
     fn new(config: Config) -> AstGen {
         let mut lib = config.compilation.lib_dirs.clone();
-        lib.push(defaults::DEFAULT_LIB_PATH.into());
+        lib.push(defaults::LIB_PATH.into());
 
         let mut include = config.compilation.include_dirs.clone();
-        include.push(defaults::DEFAULT_INCLUDE_PATH.into());
+        include.push(defaults::INCLUDE_PATH.into());
 
         AstGen {
             config: config,
