@@ -24,12 +24,10 @@ mod parser;
 use compiler::Compiler;
 use config::Config;
 use melon::typedef::Result;
-use std::{
-    fs::{self, File},
-    io::Write,
-    path::PathBuf,
-    time::Instant,
-};
+use std::{fs::{self, File},
+          io::Write,
+          path::PathBuf,
+          time::Instant};
 use structopt::StructOpt;
 
 const TARGET_DIRECTORY: &str = "target";
@@ -121,13 +119,26 @@ fn new(path: &PathBuf) -> Result<()> {
     fs::create_dir_all(path.join(defaults::LIB_PATH))?;
     fs::create_dir_all(path.join(defaults::INCLUDE_PATH))?;
 
-    let config_data = include_bytes!("templates/Beast.toml");
+    let config_data = format!(
+        r#"# This is a configuration file template
+
+[program]
+name = "program_name"
+target_version = "{}" # the version of the melon library used by the target
+system_id = "__DEBUG__"
+
+# [signals]
+# gurgle = 1
+# nuke = 2
+# fire = 3"#,
+        melon::VERSION
+    );
+
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
-    config_file.write_all(&config_data[..])?;
+    config_file.write_all(&config_data.into_bytes())?;
 
     let main_file_data = include_bytes!("templates/main.bst");
-    let mut main_file_file =
-        File::create(path.join(defaults::INCLUDE_PATH).join("main.bst"))?;
+    let mut main_file_file = File::create(path.join(defaults::INCLUDE_PATH).join("main.bst"))?;
     main_file_file.write_all(&main_file_data[..])?;
 
     let gitignore_data = include_bytes!("templates/.gitignore");

@@ -145,10 +145,10 @@ impl Compiler {
         }
 
         ensure!(
-            meta_instr_vec.len() <= (UInt::max_value() as usize),
+            meta_instr_vec.len() <= (u16::max_value() as usize),
             "program has too many instructions ({}). Maximum number of instructions: {}",
             meta_instr_vec.len(),
-            UInt::max_value()
+            u16::max_value()
         );
 
         let mut final_instructions = Vec::new();

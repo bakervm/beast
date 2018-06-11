@@ -6,17 +6,17 @@ use std::collections::BTreeMap;
 pub enum Expr {
     ActualInstr(Instruction),
 
-    PushConstU8(Argument<SmallUInt>),
-    PushConstU16(Argument<UInt>),
-    PushConstI8(Argument<SmallInt>),
-    PushConstI16(Argument<Int>),
+    PushConstU8(Argument<u8>),
+    PushConstU16(Argument<u16>),
+    PushConstI8(Argument<i8>),
+    PushConstI16(Argument<i16>),
 
     Load(IntegerType, Argument<Address>),
     Store(IntegerType, Argument<Address>),
 
     Sys(String),
     Call(String),
-    Alloc(Argument<UInt>),
+    Alloc(Argument<u16>),
 
     While(While),
     If(If),
