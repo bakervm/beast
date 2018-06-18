@@ -228,12 +228,12 @@ impl Compiler {
                     let meta_len = meta_instrs.len() as u16;
 
                     meta_vec.push(MetaInstr::ActualInstr(match cond {
-                        Condition::Greater => Instruction::Jgt(true, meta_len + 2),
-                        Condition::Less => Instruction::Jlt(true, meta_len + 2),
-                        Condition::Equal => Instruction::Jeq(true, meta_len + 2),
-                        Condition::NotEqual => Instruction::Jneq(true, meta_len + 2),
-                        Condition::GreaterOrEqual => Instruction::JgtEq(true, meta_len + 2),
-                        Condition::LessOrEqual => Instruction::JltEq(true, meta_len + 2),
+                        Condition::Greater => Instruction::JltEq(true, meta_len + 2),
+                        Condition::Less => Instruction::JgtEq(true, meta_len + 2),
+                        Condition::Equal => Instruction::Jneq(true, meta_len + 2),
+                        Condition::NotEqual => Instruction::Jeq(true, meta_len + 2),
+                        Condition::GreaterOrEqual => Instruction::Jlt(true, meta_len + 2),
+                        Condition::LessOrEqual => Instruction::Jgt(true, meta_len + 2),
                     }));
 
                     meta_vec.append(&mut meta_instrs);
@@ -285,12 +285,12 @@ impl Compiler {
                     let if_meta_len = if_meta_instrs.len() as u16;
 
                     meta_vec.push(MetaInstr::ActualInstr(match cond {
-                        Condition::Greater => Instruction::Jgt(true, if_meta_len + 1),
-                        Condition::Less => Instruction::Jlt(true, if_meta_len + 1),
-                        Condition::Equal => Instruction::Jeq(true, if_meta_len + 1),
-                        Condition::NotEqual => Instruction::Jneq(true, if_meta_len + 1),
-                        Condition::GreaterOrEqual => Instruction::JgtEq(true, if_meta_len + 1),
-                        Condition::LessOrEqual => Instruction::JltEq(true, if_meta_len + 1),
+                        Condition::Greater => Instruction::JltEq(true, if_meta_len + 1),
+                        Condition::Less => Instruction::JgtEq(true, if_meta_len + 1),
+                        Condition::Equal => Instruction::Jneq(true, if_meta_len + 1),
+                        Condition::NotEqual => Instruction::Jeq(true, if_meta_len + 1),
+                        Condition::GreaterOrEqual => Instruction::Jlt(true, if_meta_len + 1),
+                        Condition::LessOrEqual => Instruction::Jgt(true, if_meta_len + 1),
                     }));
 
                     meta_vec.append(&mut if_meta_instrs);
