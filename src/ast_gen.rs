@@ -6,10 +6,12 @@ use library::Lib;
 use melon::{typedef::*, Instruction, IntegerType, Register};
 use parser::{BeastParser, Rule};
 use pest::{iterators::Pair, Parser};
-use std::{
-    collections::{BTreeMap, BTreeSet}, fs::File, io::Read, path::PathBuf,
-    sync::mpsc::{self, TryRecvError}, thread,
-};
+use std::{collections::{BTreeMap, BTreeSet},
+          fs::File,
+          io::Read,
+          path::PathBuf,
+          sync::mpsc::{self, TryRecvError},
+          thread};
 
 const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
 const LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
@@ -573,20 +575,4 @@ impl AstGen {
 enum ModuleSource {
     Module(PathBuf),
     Lib(Lib),
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_data() {
-        const MODULE_NAME: &str = "templates.main";
-
-        let config = Config::from_file("src/templates/Beast.toml").unwrap();
-
-        let mut ast_gen = AstGen::new(config);
-
-        let _ = ast_gen.module(MODULE_NAME.to_string());
-    }
 }
