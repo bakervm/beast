@@ -1,9 +1,12 @@
-use flate2::{Compression, read::GzDecoder, write::GzEncoder};
-use melon::Instruction;
+use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use melon::typedef::*;
+use melon::Instruction;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs::File, io::{Read, Write}, path::Path};
+use std::{collections::BTreeMap,
+          fs::File,
+          io::{Read, Write},
+          path::Path};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Lib {
