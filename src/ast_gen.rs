@@ -76,8 +76,7 @@ impl AstGen {
 
                     modules.insert(module_name, module.clone());
 
-                    let imports = module.imports.clone();
-                    for import in imports {
+                    for import in module.imports {
                         if !requested_modules.contains(&import.module_id) {
                             requested_modules.insert(import.module_id.clone());
 
@@ -164,12 +163,10 @@ impl AstGen {
             (None, after_func.as_str())
         };
 
-        let module_id = module_id.to_owned();
-
         Ok(Import {
             func_origin_id: func_name.into(),
             func_alias_id: func_alias.unwrap_or(func_name).into(),
-            module_id: module_id,
+            module_id: module_id.into(),
         })
     }
 
