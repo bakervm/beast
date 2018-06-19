@@ -18,7 +18,6 @@ mod ast_gen;
 mod compiler;
 mod config;
 mod defaults;
-mod library;
 mod parser;
 
 use compiler::Compiler;

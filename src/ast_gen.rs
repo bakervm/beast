@@ -2,7 +2,6 @@ use ast::*;
 use config::Config;
 use defaults;
 use failure::ResultExt;
-use library::Lib;
 use melon::{typedef::*, Instruction, IntegerType, Register};
 use parser::{BeastParser, Rule};
 use pest::{iterators::Pair, Parser};
@@ -14,7 +13,6 @@ use std::{collections::{BTreeMap, BTreeSet},
           thread};
 
 const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
-const LIB_FILE_EXTENSIONS: [&str; 2] = ["blib", "bl"];
 
 #[derive(Clone)]
 pub struct AstGen {
@@ -78,14 +76,11 @@ impl AstGen {
 
                     modules.insert(module_name, module.clone());
 
-                    if let Module::Source { ref imports, .. } = module {
-                        let imports = imports.clone();
-                        for import in imports {
-                            if !requested_modules.contains(&import.module_path) {
-                                requested_modules.insert(import.module_path.clone());
+                    for import in module.imports {
+                        if !requested_modules.contains(&import.module_id) {
+                            requested_modules.insert(import.module_id.clone());
 
-                                instructor_sender.send(import.module_path)?;
-                            }
+                            instructor_sender.send(import.module_id)?;
                         }
                     }
                 }
@@ -103,13 +98,8 @@ impl AstGen {
         Ok(Ast { modules: modules })
     }
 
-    fn module(&mut self, module_path: String) -> Result<Module> {
-        let module = self.discover_module(module_path.clone())?;
-
-        let module_file = match module {
-            ModuleSource::Module(module_file) => module_file,
-            ModuleSource::Lib(lib) => return Ok(Module::Lib(lib)),
-        };
+    fn module(&mut self, module_id: String) -> Result<Module> {
+        let module_file = self.discover_module(module_id.clone())?;
 
         let mut file = File::open(module_file)?;
 
@@ -151,8 +141,8 @@ impl AstGen {
             }
         }
 
-        Ok(Module::Source {
-            path: module_path,
+        Ok(Module {
+            id: module_id,
             imports,
             exports,
             constants,
@@ -167,18 +157,16 @@ impl AstGen {
 
         let after_func = pairs.next().unwrap();
 
-        let (func_alias, module_path) = if after_func.as_rule() == Rule::func_alias {
+        let (func_alias, module_id) = if after_func.as_rule() == Rule::func_alias {
             (Some(after_func.as_str()), pairs.next().unwrap().as_str())
         } else {
             (None, after_func.as_str())
         };
 
-        let module_path = module_path.to_owned();
-
         Ok(Import {
-            origin_name: func_name.into(),
-            alias: func_alias.unwrap_or(func_name).into(),
-            module_path: module_path,
+            func_origin_id: func_name.into(),
+            func_alias_id: func_alias.unwrap_or(func_name).into(),
+            module_id: module_id.into(),
         })
     }
 
@@ -196,7 +184,7 @@ impl AstGen {
         }
 
         Ok(Func {
-            name: func_name.into(),
+            id: func_name.into(),
             expr: instr_vec,
         })
     }
@@ -204,13 +192,15 @@ impl AstGen {
     fn constant(&mut self, pair: Pair<Rule>) -> Result<Const> {
         let mut pairs = pair.into_inner();
 
-        let const_name = pairs.next().unwrap().as_str();
+        let const_id = pairs.next().unwrap().as_str();
 
         let raw_const_lit = pairs.next().unwrap().as_str();
 
         Ok(Const {
-            name: const_name.into(),
-            value: raw_const_lit.parse()?,
+            id: const_id.into(),
+            value: raw_const_lit
+                .parse()
+                .or_else(|_| i32::from_str_radix(&raw_const_lit[2..], 16))?,
         })
     }
 
@@ -222,8 +212,8 @@ impl AstGen {
         let alias = pairs.next().and_then(|e| Some(e.as_str())).or_else(|| None);
 
         Ok(Export {
-            origin_name: exported_func.into(),
-            alias: alias.unwrap_or(exported_func).into(),
+            func_origin_id: exported_func.into(),
+            func_alias_id: alias.unwrap_or(exported_func).into(),
         })
     }
 
@@ -526,33 +516,14 @@ impl AstGen {
         Ok(res)
     }
 
-    fn discover_module(&mut self, module: String) -> Result<ModuleSource> {
+    fn discover_module(&mut self, module: String) -> Result<PathBuf> {
         let orig_module = module.clone();
 
         let base_path: PathBuf = orig_module.split('.').collect();
 
-        let blib_module_name = base_path.with_extension(LIB_FILE_EXTENSIONS[0]);
-
-        let bl_module_name = base_path.with_extension(LIB_FILE_EXTENSIONS[1]);
-
         let beast_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[0]);
 
         let bst_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[1]);
-
-        let found_lib = self.lib
-            .iter()
-            .map(|lib| PathBuf::from(lib).join(blib_module_name.clone()))
-            .chain(
-                self.lib
-                    .iter()
-                    .map(|lib| PathBuf::from(lib).join(bl_module_name.clone())),
-            )
-            .find(|lib| lib.exists());
-
-        if let Some(lib_path) = found_lib {
-            let lib = Lib::from_file(lib_path)?;
-            return Ok(ModuleSource::Lib(lib));
-        }
 
         let found_module = self.include
             .iter()
@@ -564,15 +535,10 @@ impl AstGen {
             )
             .find(|include| include.exists());
 
-        if let Some(module_path) = found_module {
-            return Ok(ModuleSource::Module(module_path));
+        if let Some(module_id) = found_module {
+            return Ok(module_id);
         }
 
         bail!("unable to find module: {:?}", module)
     }
-}
-
-enum ModuleSource {
-    Module(PathBuf),
-    Lib(Lib),
 }
