@@ -166,7 +166,8 @@ i16_demote = { i16_demote_keyword }
 
 // The register is defined using an atom for later flexibility
 reg_keyword = _{ "reg" }
-reg = { reg_keyword ~ atom }
+reg = { reg_keyword ~ register }
+register = { ":sp" | ":bp" }
 
 // A LoadIndirect instruction is produced when the address at the end is omitted
 load_keyword = _{ "load" }

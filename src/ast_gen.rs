@@ -17,21 +17,16 @@ const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
 #[derive(Clone)]
 pub struct AstGen {
     config: Config,
-    lib: Vec<String>,
     include: Vec<String>,
 }
 
 impl AstGen {
     fn new(config: Config) -> AstGen {
-        let mut lib = config.compilation.lib_dirs.clone();
-        lib.push(defaults::LIB_PATH.into());
-
         let mut include = config.compilation.include_dirs.clone();
         include.push(defaults::INCLUDE_PATH.into());
 
         AstGen {
             config: config,
-            lib: lib,
             include: include,
         }
     }
@@ -506,11 +501,7 @@ impl AstGen {
         let res = match raw {
             ":sp" => Register::StackPtr,
             ":bp" => Register::BasePtr,
-            reg => bail!(
-                "unrecognized register identifier: {:?} is not one of {:?}",
-                reg,
-                vec![":sp", ":bp"]
-            ),
+            _ => unreachable!(),
         };
 
         Ok(res)
