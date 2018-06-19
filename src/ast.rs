@@ -1,4 +1,3 @@
-use library::Lib;
 use melon::{typedef::*, Instruction, IntegerType};
 use std::collections::BTreeMap;
 
@@ -55,39 +54,36 @@ pub struct While {
 
 #[derive(Debug, Clone)]
 pub struct Func {
-    pub name: String,
+    pub id: String,
     pub expr: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Const {
-    pub name: String,
+    pub id: String,
     pub value: i32,
 }
 
 #[derive(Debug, Clone)]
 pub struct Import {
-    pub origin_name: String,
-    pub alias: String,
-    pub module_path: String,
+    pub func_origin_id: String,
+    pub func_alias_id: String,
+    pub module_id: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct Export {
-    pub origin_name: String,
-    pub alias: String,
+    pub func_origin_id: String,
+    pub func_alias_id: String,
 }
 
 #[derive(Debug, Clone)]
-pub enum Module {
-    Source {
-        path: String,
-        imports: Vec<Import>,
-        exports: Vec<Export>,
-        constants: Vec<Const>,
-        funcs: Vec<Func>,
-    },
-    Lib(Lib),
+pub struct Module {
+    pub id: String,
+    pub imports: Vec<Import>,
+    pub exports: Vec<Export>,
+    pub constants: Vec<Const>,
+    pub funcs: Vec<Func>,
 }
 
 #[derive(Debug, Clone)]

@@ -1,8 +1,7 @@
-use ast::{Argument, Ast, Condition, Const, Export, Expr, Func, If, Import, Module, While};
+use ast::*;
 use ast_gen::AstGen;
 use config::Config;
 use defaults;
-use library::Lib;
 use melon::{typedef::*, Instruction, Program};
 use std::collections::BTreeMap;
 
@@ -11,13 +10,7 @@ const PRIVATE_PREFIX: &str = "PRIVATE__";
 #[derive(Debug)]
 enum MetaInstr {
     ActualInstr(Instruction),
-    Call { func: String, module: String },
-}
-
-#[derive(Debug)]
-enum FuncMapOrLib {
-    FuncMap(BTreeMap<String, Vec<MetaInstr>>),
-    Lib(Lib),
+    Call { func_id: String, module_id: String },
 }
 
 pub struct Compiler {
@@ -54,87 +47,51 @@ impl Compiler {
         let mut meta_module_map = BTreeMap::new();
 
         for (module_name, module) in modules {
-            let func_map_or_lib = match module {
-                Module::Lib(lib) => FuncMapOrLib::Lib(lib),
-                Module::Source {
-                    funcs,
-                    imports,
-                    exports,
-                    path,
-                    constants,
-                } => {
-                    let mut meta_func_map = BTreeMap::new();
+            let mut meta_func_map = BTreeMap::new();
 
-                    for func in &funcs {
-                        let mut meta_instr = self.to_meta_instr(
-                            func.expr.clone(),
-                            &exports,
-                            &constants,
-                            &imports,
-                            &funcs,
-                            &path,
-                        )?;
+            for func in &module.funcs {
+                let mut meta_instr = self.to_meta_instr(func.expr.clone(), &module)?;
 
-                        let exported_func = exports.iter().find(|exp| exp.origin_name == func.name);
+                let exported_func = module
+                    .exports
+                    .iter()
+                    .find(|exp| exp.func_origin_id == func.id);
 
-                        let mut func_name = if let Some(exp) = exported_func {
-                            exp.alias.clone()
-                        } else {
-                            format!("{}{}", PRIVATE_PREFIX, func.name)
-                        };
+                let mut func_id = if let Some(exp) = exported_func {
+                    exp.func_alias_id.clone()
+                } else {
+                    format!("{}{}", PRIVATE_PREFIX, func.id)
+                };
 
-                        if module_name == root_module && func.name == defaults::ENTRY_POINT_FUNC {
-                            func_name = defaults::ENTRY_POINT_FUNC.into();
-                            meta_instr.push(MetaInstr::ActualInstr(Instruction::SysCall(0)));
-                        } else {
-                            meta_instr.push(MetaInstr::ActualInstr(Instruction::Ret));
-                        }
-
-                        meta_func_map.insert(func_name, meta_instr);
-                    }
-
-                    FuncMapOrLib::FuncMap(meta_func_map)
+                if module_name == root_module && func.id == defaults::ENTRY_POINT_FUNC {
+                    func_id = defaults::ENTRY_POINT_FUNC.into();
+                    meta_instr.push(MetaInstr::ActualInstr(Instruction::SysCall(0)));
+                } else {
+                    meta_instr.push(MetaInstr::ActualInstr(Instruction::Ret));
                 }
-            };
 
-            meta_module_map.insert(module_name, func_map_or_lib);
+                meta_func_map.insert(func_id, meta_instr);
+            }
+
+            meta_module_map.insert(module_name, meta_func_map);
         }
 
         let mut meta_instr_vec = Vec::new();
         let mut module_map = BTreeMap::new();
 
-        for (meta_module_name, func_map_or_lib) in meta_module_map {
-            let final_func_map = match func_map_or_lib {
-                FuncMapOrLib::Lib(lib) => {
+        for (meta_module_name, outer_func_map) in meta_module_map {
+            let final_func_map = {
+                let mut func_map = BTreeMap::new();
+
+                for (meta_func_id, mut meta_func) in outer_func_map {
                     let offset = meta_instr_vec.len();
-                    let mut func_map = BTreeMap::new();
 
-                    for (func_name, lib_offset) in lib.exports {
-                        func_map.insert(func_name, lib_offset + offset);
-                    }
+                    func_map.insert(meta_func_id, offset);
 
-                    let mut lib_meta_instr: Vec<_> = lib.instructions
-                        .iter()
-                        .map(|lib_instr| MetaInstr::ActualInstr(lib_instr.clone()))
-                        .collect();
-
-                    meta_instr_vec.append(&mut lib_meta_instr);
-
-                    func_map
+                    meta_instr_vec.append(&mut meta_func);
                 }
-                FuncMapOrLib::FuncMap(map) => {
-                    let mut func_map = BTreeMap::new();
 
-                    for (meta_func_name, mut meta_func) in map {
-                        let offset = meta_instr_vec.len();
-
-                        func_map.insert(meta_func_name, offset);
-
-                        meta_instr_vec.append(&mut meta_func);
-                    }
-
-                    func_map
-                }
+                func_map
             };
 
             module_map.insert(meta_module_name, final_func_map);
@@ -155,14 +112,14 @@ impl Compiler {
         for meta_instr in meta_instr_vec {
             let instr = match meta_instr {
                 MetaInstr::ActualInstr(instr) => instr,
-                MetaInstr::Call { func, module } => {
+                MetaInstr::Call { func_id, module_id } => {
                     let func_map = module_map
-                        .get(&module)
-                        .ok_or(format_err!("unable to find module {:?}", module))?;
+                        .get(&module_id)
+                        .ok_or(format_err!("unable to find module {:?}", module_id))?;
 
                     let func_addr = func_map
-                        .get(&func)
-                        .ok_or(format_err!("unable to find function {:?}", func))?;
+                        .get(&func_id)
+                        .ok_or(format_err!("unable to find function {:?}", func_id))?;
 
                     Instruction::Call(*func_addr as u16)
                 }
@@ -194,15 +151,7 @@ impl Compiler {
         })
     }
 
-    fn to_meta_instr(
-        &mut self,
-        instrs: Vec<Expr>,
-        exports: &Vec<Export>,
-        consts: &Vec<Const>,
-        imports: &Vec<Import>,
-        other_funcs: &Vec<Func>,
-        local_module_path: &String,
-    ) -> Result<Vec<MetaInstr>> {
+    fn to_meta_instr(&mut self, instrs: Vec<Expr>, module: &Module) -> Result<Vec<MetaInstr>> {
         let mut meta_vec = Vec::new();
 
         for instr in instrs {
@@ -216,14 +165,7 @@ impl Compiler {
 
                     meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(type_t)));
 
-                    let mut meta_instrs = self.to_meta_instr(
-                        exprs,
-                        exports,
-                        consts,
-                        imports,
-                        other_funcs,
-                        local_module_path,
-                    )?;
+                    let mut meta_instrs = self.to_meta_instr(exprs, module)?;
 
                     let meta_len = meta_instrs.len() as u16;
 
@@ -253,26 +195,12 @@ impl Compiler {
 
                     meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(type_t)));
 
-                    let mut if_meta_instrs = self.to_meta_instr(
-                        exprs,
-                        exports,
-                        consts,
-                        imports,
-                        other_funcs,
-                        local_module_path,
-                    )?;
+                    let mut if_meta_instrs = self.to_meta_instr(exprs, module)?;
 
                     let mut else_meta_instrs = Vec::new();
 
                     if let Some(instrs) = else_exprs {
-                        else_meta_instrs = self.to_meta_instr(
-                            instrs,
-                            exports,
-                            consts,
-                            imports,
-                            other_funcs,
-                            local_module_path,
-                        )?;
+                        else_meta_instrs = self.to_meta_instr(instrs, module)?;
 
                         let else_meta_len = else_meta_instrs.len() as u16;
 
@@ -303,7 +231,7 @@ impl Compiler {
             let meta_instr = match instr {
                 Expr::PushConstU8(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&consts, id)?;
+                        let value = Compiler::find_const(&module.constants, id)?;
 
                         MetaInstr::ActualInstr(Instruction::PushConstU8(value as u8))
                     }
@@ -311,7 +239,7 @@ impl Compiler {
                 },
                 Expr::PushConstU16(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&consts, id)?;
+                        let value = Compiler::find_const(&module.constants, id)?;
 
                         MetaInstr::ActualInstr(Instruction::PushConstU16(value as u16))
                     }
@@ -321,7 +249,7 @@ impl Compiler {
                 },
                 Expr::PushConstI8(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&consts, id)?;
+                        let value = Compiler::find_const(&module.constants, id)?;
 
                         MetaInstr::ActualInstr(Instruction::PushConstI8(value as i8))
                     }
@@ -329,7 +257,7 @@ impl Compiler {
                 },
                 Expr::PushConstI16(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&consts, id)?;
+                        let value = Compiler::find_const(&module.constants, id)?;
 
                         MetaInstr::ActualInstr(Instruction::PushConstI16(value as i16))
                     }
@@ -339,7 +267,7 @@ impl Compiler {
                 },
                 Expr::Load(integer_type, arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&consts, id)?;
+                        let value = Compiler::find_const(&module.constants, id)?;
 
                         MetaInstr::ActualInstr(Instruction::Load(integer_type, value as u16))
                     }
@@ -349,7 +277,7 @@ impl Compiler {
                 },
                 Expr::Store(integer_type, arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&consts, id)?;
+                        let value = Compiler::find_const(&module.constants, id)?;
 
                         MetaInstr::ActualInstr(Instruction::Store(integer_type, value as u16))
                     }
@@ -374,42 +302,48 @@ impl Compiler {
 
                     MetaInstr::ActualInstr(Instruction::SysCall(real_signal))
                 }
-                Expr::Call(func_name) => {
-                    let opt_import = imports.iter().find(|import| import.alias == func_name);
+                Expr::Call(func_id) => {
+                    let opt_import = module
+                        .imports
+                        .iter()
+                        .find(|import| import.func_alias_id == func_id);
                     if let Some(ref import) = opt_import {
                         MetaInstr::Call {
-                            func: import.origin_name.clone(),
-                            module: import.module_path.clone(),
+                            func_id: import.func_origin_id.clone(),
+                            module_id: import.module_id.clone(),
                         }
                     } else {
-                        let opt_local = other_funcs
+                        let opt_local = module
+                            .funcs
                             .iter()
-                            .find(|other_func| other_func.name == func_name);
+                            .find(|other_func| other_func.id == func_id);
                         if let Some(ref local) = opt_local {
-                            let exported_func =
-                                exports.iter().find(|exp| exp.origin_name == local.name);
+                            let exported_func = module
+                                .exports
+                                .iter()
+                                .find(|exp| exp.func_origin_id == local.id);
 
-                            let func_name = if let Some(exp) = exported_func {
-                                exp.alias.clone()
+                            let func_id = if let Some(exp) = exported_func {
+                                exp.func_alias_id.clone()
                             } else {
-                                format!("{}{}", PRIVATE_PREFIX, local.name)
+                                format!("{}{}", PRIVATE_PREFIX, local.id)
                             };
 
                             MetaInstr::Call {
-                                func: func_name,
-                                module: local_module_path.clone(),
+                                func_id: func_id,
+                                module_id: module.id.clone(),
                             }
                         } else {
                             bail!(
                                 "unable to find function definition or import for {:?}",
-                                func_name
+                                func_id
                             );
                         }
                     }
                 }
                 Expr::Alloc(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&consts, id)?;
+                        let value = Compiler::find_const(&module.constants, id)?;
 
                         MetaInstr::ActualInstr(Instruction::Alloc(value as u16))
                     }
@@ -428,7 +362,7 @@ impl Compiler {
     fn find_const(consts: &Vec<Const>, id: String) -> Result<i32> {
         let cons = consts
             .iter()
-            .find(|con| con.name == id)
+            .find(|con| con.id == id)
             .ok_or(format_err!("unable to find constant: {:?}", id))?;
 
         Ok(cons.value)
