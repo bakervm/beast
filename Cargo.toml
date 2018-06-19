@@ -1,6 +1,6 @@
 [package]
 name = "beast"
-version = "1.0.0-alpha.1"
+version = "1.0.0-alpha.2"
 description = "A build tool for the Beast high level assembly language"
 authors = ["Julian Laubstein <contact@julianlaubstein.de>"]
 license = "MIT"
