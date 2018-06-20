@@ -148,7 +148,7 @@ impl AstGen {
     fn import(&mut self, pair: Pair<Rule>) -> Result<Import> {
         let mut pairs = pair.into_inner();
 
-        let func_name = pairs.next().unwrap().as_str();
+        let func_id = pairs.next().unwrap().as_str();
 
         let after_func = pairs.next().unwrap();
 
@@ -159,8 +159,8 @@ impl AstGen {
         };
 
         Ok(Import {
-            func_origin_id: func_name.into(),
-            func_alias_id: func_alias.unwrap_or(func_name).into(),
+            func_origin_id: func_id.into(),
+            func_alias_id: func_alias.unwrap_or(func_id).into(),
             module_id: module_id.into(),
         })
     }
@@ -168,7 +168,7 @@ impl AstGen {
     fn func(&mut self, pair: Pair<Rule>) -> Result<Func> {
         let mut pairs = pair.into_inner();
 
-        let func_name = pairs.next().unwrap().as_str();
+        let func_id = pairs.next().unwrap().as_str();
 
         let mut instr_vec = Vec::new();
 
@@ -179,7 +179,7 @@ impl AstGen {
         }
 
         Ok(Func {
-            id: func_name.into(),
+            id: func_id.into(),
             expr: instr_vec,
         })
     }
