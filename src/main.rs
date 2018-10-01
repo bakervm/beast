@@ -106,6 +106,8 @@ fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
     let output_file = PathBuf::from(name).with_extension(melon::typedef::ROM_FILE_EXTENSION);
     let output_path = PathBuf::from(TARGET_DIRECTORY).join(output_file);
 
+    fs::create_dir_all(TARGET_DIRECTORY)?;
+
     program.save_as(output_path)?;
 
     Ok(())
