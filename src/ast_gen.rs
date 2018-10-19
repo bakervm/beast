@@ -17,21 +17,16 @@ const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
 #[derive(Clone)]
 pub struct AstGen {
     config: Config,
-    lib: Vec<String>,
     include: Vec<String>,
 }
 
 impl AstGen {
     fn new(config: Config) -> AstGen {
-        let mut lib = config.compilation.lib_dirs.clone();
-        lib.push(defaults::LIB_PATH.into());
-
         let mut include = config.compilation.include_dirs.clone();
         include.push(defaults::INCLUDE_PATH.into());
 
         AstGen {
             config: config,
-            lib: lib,
             include: include,
         }
     }
@@ -153,7 +148,7 @@ impl AstGen {
     fn import(&mut self, pair: Pair<Rule>) -> Result<Import> {
         let mut pairs = pair.into_inner();
 
-        let func_name = pairs.next().unwrap().as_str();
+        let func_id = pairs.next().unwrap().as_str();
 
         let after_func = pairs.next().unwrap();
 
@@ -164,8 +159,8 @@ impl AstGen {
         };
 
         Ok(Import {
-            func_origin_id: func_name.into(),
-            func_alias_id: func_alias.unwrap_or(func_name).into(),
+            func_origin_id: func_id.into(),
+            func_alias_id: func_alias.unwrap_or(func_id).into(),
             module_id: module_id.into(),
         })
     }
@@ -173,7 +168,7 @@ impl AstGen {
     fn func(&mut self, pair: Pair<Rule>) -> Result<Func> {
         let mut pairs = pair.into_inner();
 
-        let func_name = pairs.next().unwrap().as_str();
+        let func_id = pairs.next().unwrap().as_str();
 
         let mut instr_vec = Vec::new();
 
@@ -184,7 +179,7 @@ impl AstGen {
         }
 
         Ok(Func {
-            id: func_name.into(),
+            id: func_id.into(),
             expr: instr_vec,
         })
     }
@@ -506,11 +501,7 @@ impl AstGen {
         let res = match raw {
             ":sp" => Register::StackPtr,
             ":bp" => Register::BasePtr,
-            reg => bail!(
-                "unrecognized register identifier: {:?} is not one of {:?}",
-                reg,
-                vec![":sp", ":bp"]
-            ),
+            _ => unreachable!(),
         };
 
         Ok(res)
