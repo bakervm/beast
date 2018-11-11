@@ -9,9 +9,8 @@ extern crate serde;
 extern crate serde_derive;
 extern crate flate2;
 extern crate rmp_serde as rmps;
-extern crate toml;
-#[macro_use]
 extern crate structopt;
+extern crate toml;
 
 mod ast;
 mod ast_gen;
@@ -23,10 +22,12 @@ mod parser;
 use compiler::Compiler;
 use config::Config;
 use melon::typedef::Result;
-use std::{fs::{self, File},
-          io::Write,
-          path::PathBuf,
-          time::Instant};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+    time::Instant,
+};
 use structopt::StructOpt;
 
 const TARGET_DIRECTORY: &str = "target";
@@ -34,9 +35,15 @@ const CONFIG_FILE_NAME: &str = "Beast.toml";
 
 #[derive(StructOpt)]
 enum Opt {
-    #[structopt(name = "new", about = "initialize a new Beast project at the given directory")]
+    #[structopt(
+        name = "new",
+        about = "initialize a new Beast project at the given directory"
+    )]
     New {
-        #[structopt(help = "the path to the target project directory", parse(from_os_str))]
+        #[structopt(
+            help = "the path to the target project directory",
+            parse(from_os_str)
+        )]
         path: PathBuf,
     },
     #[structopt(name = "build", about = "builds the current project")]
@@ -46,7 +53,10 @@ enum Opt {
             help = "emits the corresponding function-map for the current build"
         )]
         emit_func_map: bool,
-        #[structopt(long = "emit-ast", help = "emits the corresponding AST for the current build")]
+        #[structopt(
+            long = "emit-ast",
+            help = "emits the corresponding AST for the current build"
+        )]
         emit_ast: bool,
     },
 }
@@ -90,13 +100,13 @@ fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
 
     let entry_point = compilation
         .entry_point
-        .unwrap_or(defaults::BIN_ENTRY_POINT_MODULE.into());
+        .unwrap_or_else(|| defaults::BIN_ENTRY_POINT_MODULE.into());
 
     let name = config.program.name.clone();
 
     let now = Instant::now();
 
-    let program = Compiler::compile(entry_point, config, emit_func_map, emit_ast)?;
+    let program = Compiler::compile(&entry_point, config, emit_func_map, emit_ast)?;
 
     println!(
         "Compilation finished. Took {} seconds",
@@ -120,20 +130,17 @@ fn new(path: &PathBuf) -> Result<()> {
     fs::create_dir_all(path.join(defaults::LIB_PATH))?;
     fs::create_dir_all(path.join(defaults::INCLUDE_PATH))?;
 
-    let config_data = format!(
-        r#"# This is a configuration file template
+    let config_data: String = r#"# This is a configuration file template
 
 [program]
 name = "program_name"
-target_version = "{}" # the version of the melon library used by the target
 system_id = "__DEBUG__"
 
 # [signals]
 # gurgle = 1
 # nuke = 2
-# fire = 3"#,
-        melon::VERSION
-    );
+# fire = 3"#
+        .into();
 
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
     config_file.write_all(&config_data.into_bytes())?;
