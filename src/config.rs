@@ -6,7 +6,6 @@ use toml;
 pub struct Program {
     /// The version of the melon library used by the target
     pub name: String,
-    pub target_version: String,
     pub system_id: String,
     pub mem_pages: Option<u8>,
 }

@@ -130,20 +130,9 @@ fn new(path: &PathBuf) -> Result<()> {
     fs::create_dir_all(path.join(defaults::LIB_PATH))?;
     fs::create_dir_all(path.join(defaults::INCLUDE_PATH))?;
 
-    let config_data: String = r#"# This is a configuration file template
-
-[program]
-name = "program_name"
-system_id = "__DEBUG__"
-
-# [signals]
-# gurgle = 1
-# nuke = 2
-# fire = 3"#
-        .into();
-
+    let config_data = include_bytes!("templates/Beast.toml");
     let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
-    config_file.write_all(&config_data.into_bytes())?;
+    config_file.write_all(&config_data[..])?;
 
     let main_file_data = include_bytes!("templates/main.bst");
     let mut main_file_file = File::create(path.join(defaults::INCLUDE_PATH).join("main.bst"))?;
