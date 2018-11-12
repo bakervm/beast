@@ -124,7 +124,6 @@ fn new(path: &PathBuf) -> Result<()> {
     ensure!(!path.exists(), "directory already exists");
 
     fs::create_dir_all(path.join(TARGET_DIRECTORY))?;
-    fs::create_dir_all(path.join(defaults::LIB_PATH))?;
     fs::create_dir_all(path.join(defaults::INCLUDE_PATH))?;
 
     let config_data = include_bytes!("templates/Beast.toml");
