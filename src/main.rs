@@ -62,13 +62,10 @@ enum Opt {
 }
 
 fn main() {
-    match run() {
-        Ok(_) => {}
-        Err(e) => {
-            eprintln!("{}", e);
-            ::std::process::exit(1);
-        }
-    }
+    run().unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        ::std::process::exit(1);
+    });
 }
 
 fn run() -> Result<()> {
@@ -145,4 +142,42 @@ fn new(path: &PathBuf) -> Result<()> {
     println!("New project successfully initialized at {:?}", path);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate assert_cmd;
+    extern crate tempfile;
+
+    use self::assert_cmd::prelude::*;
+    use std::process::Command;
+
+    #[test]
+    fn basic_compilation() {
+        Command::main_binary()
+            .unwrap()
+            .current_dir("test")
+            .arg("build")
+            .assert()
+            .success();
+    }
+
+    #[test]
+    fn init_compilation() {
+        let tmp_dir = tempfile::tempdir().expect("unable to create temporary directory");
+
+        Command::main_binary()
+            .unwrap()
+            .current_dir(tmp_dir.path())
+            .args(&["new", "test_project"])
+            .assert()
+            .success();
+
+        Command::main_binary()
+            .unwrap()
+            .current_dir(tmp_dir.path().join("test_project"))
+            .arg("build")
+            .assert()
+            .success();
+    }
 }

@@ -13,10 +13,7 @@ pub struct Program {
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct Compilation {
     pub entry_point: Option<String>,
-    /// The paths to look for libraries
-    #[serde(default, rename = "lib")]
-    pub lib_dirs: Vec<String>,
-    /// The paths to look for files to include
+    /// The paths to look in for source files to include
     #[serde(default, rename = "include")]
     pub include_dirs: Vec<String>,
 }
