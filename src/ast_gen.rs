@@ -5,12 +5,14 @@ use failure::ResultExt;
 use melon::{typedef::*, Instruction, IntegerType, Register};
 use parser::{BeastParser, Rule};
 use pest::{iterators::Pair, Parser};
-use std::{collections::{BTreeMap, BTreeSet},
-          fs::File,
-          io::Read,
-          path::PathBuf,
-          sync::mpsc::{self, TryRecvError},
-          thread};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs::File,
+    io::Read,
+    path::PathBuf,
+    sync::mpsc::{self, TryRecvError},
+    thread,
+};
 
 const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
 
@@ -94,7 +96,7 @@ impl AstGen {
     }
 
     fn module(&mut self, module_id: String) -> Result<Module> {
-        let module_file = self.discover_module(module_id.clone())?;
+        let module_file = self.discover_module(&module_id)?;
 
         let mut file = File::open(module_file)?;
 
@@ -239,18 +241,20 @@ impl AstGen {
                     Rule::literal => {
                         let arg = raw_arg.as_str();
                         let inst = match real_type {
-                            IntegerType::U8 => Expr::PushConstU8(
-                                Argument::Literal(arg.parse().or_else(|_| u8::from_str_radix(&arg[2..], 16))?),
-                            ),
-                            IntegerType::U16 => Expr::PushConstU16(
-                                Argument::Literal(arg.parse().or_else(|_| u16::from_str_radix(&arg[2..], 16))?),
-                            ),
-                            IntegerType::I8 => Expr::PushConstI8(
-                                Argument::Literal(arg.parse().or_else(|_| i8::from_str_radix(&arg[2..], 16))?),
-                            ),
-                            IntegerType::I16 => Expr::PushConstI16(
-                                Argument::Literal(arg.parse().or_else(|_| i16::from_str_radix(&arg[2..], 16))?),
-                            ),
+                            IntegerType::U8 => Expr::PushConstU8(Argument::Literal(
+                                arg.parse().or_else(|_| u8::from_str_radix(&arg[2..], 16))?,
+                            )),
+                            IntegerType::U16 => Expr::PushConstU16(Argument::Literal(
+                                arg.parse()
+                                    .or_else(|_| u16::from_str_radix(&arg[2..], 16))?,
+                            )),
+                            IntegerType::I8 => Expr::PushConstI8(Argument::Literal(
+                                arg.parse().or_else(|_| i8::from_str_radix(&arg[2..], 16))?,
+                            )),
+                            IntegerType::I16 => Expr::PushConstI16(Argument::Literal(
+                                arg.parse()
+                                    .or_else(|_| i16::from_str_radix(&arg[2..], 16))?,
+                            )),
                         };
 
                         Ok(inst)
@@ -343,9 +347,11 @@ impl AstGen {
                         Argument::Constant(raw_arg.as_str().into())
                     } else {
                         let raw_arg = raw_arg.as_str();
-                        Argument::Literal(raw_arg
-                            .parse()
-                            .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?)
+                        Argument::Literal(
+                            raw_arg
+                                .parse()
+                                .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?,
+                        )
                     };
 
                     Ok(Expr::Load(real_type, arg))
@@ -362,9 +368,11 @@ impl AstGen {
                         Argument::Constant(raw_arg.as_str().into())
                     } else {
                         let raw_arg = raw_arg.as_str();
-                        Argument::Literal(raw_arg
-                            .parse()
-                            .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?)
+                        Argument::Literal(
+                            raw_arg
+                                .parse()
+                                .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?,
+                        )
                     };
 
                     Ok(Expr::Store(real_type, arg))
@@ -399,9 +407,11 @@ impl AstGen {
                 } else {
                     let raw_arg = raw_num_const.as_str();
 
-                    Argument::Literal(raw_arg
-                        .parse()
-                        .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?)
+                    Argument::Literal(
+                        raw_arg
+                            .parse()
+                            .or_else(|_| u16::from_str_radix(&raw_arg[2..], 16))?,
+                    )
                 };
 
                 Ok(Expr::Alloc(arg))
@@ -507,24 +517,22 @@ impl AstGen {
         Ok(res)
     }
 
-    fn discover_module(&mut self, module: String) -> Result<PathBuf> {
-        let orig_module = module.clone();
-
-        let base_path: PathBuf = orig_module.split('.').collect();
+    fn discover_module(&mut self, module: &str) -> Result<PathBuf> {
+        let base_path: PathBuf = module.split('.').collect();
 
         let beast_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[0]);
 
         let bst_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[1]);
 
-        let found_module = self.include
+        let found_module = self
+            .include
             .iter()
             .map(|include| PathBuf::from(include).join(beast_module_name.clone()))
             .chain(
                 self.include
                     .iter()
                     .map(|include| PathBuf::from(include).join(bst_module_name.clone())),
-            )
-            .find(|include| include.exists());
+            ).find(|include| include.exists());
 
         if let Some(module_id) = found_module {
             return Ok(module_id);

@@ -2,7 +2,7 @@ use ast::*;
 use ast_gen::AstGen;
 use config::Config;
 use defaults;
-use melon::{typedef::*, Instruction, Program};
+use melon::{typedef::*, Instruction, Program, ProgramBuilder};
 use std::collections::BTreeMap;
 
 const PRIVATE_PREFIX: &str = "PRIVATE__";
@@ -24,24 +24,24 @@ impl Compiler {
     }
 
     pub fn compile(
-        root_module: String,
+        root_module: &str,
         config: Config,
         emit_func_map: bool,
         emit_ast: bool,
     ) -> Result<Program> {
-        let ast = AstGen::gen(root_module.clone(), config.clone())?;
+        let ast = AstGen::gen(root_module.to_string(), config.clone())?;
 
         if emit_ast {
             println!("{:#?}", ast);
         }
 
         let mut compiler = Compiler::new(config, ast);
-        let program = compiler.build(root_module, emit_func_map)?;
+        let program = compiler.build(&root_module, emit_func_map)?;
 
         Ok(program)
     }
 
-    fn build(&mut self, root_module: String, emit_func_map: bool) -> Result<Program> {
+    fn build(&mut self, root_module: &str, emit_func_map: bool) -> Result<Program> {
         let modules = self.ast.modules.clone();
 
         let mut meta_module_map = BTreeMap::new();
@@ -115,11 +115,11 @@ impl Compiler {
                 MetaInstr::Call { func_id, module_id } => {
                     let func_map = module_map
                         .get(&module_id)
-                        .ok_or(format_err!("unable to find module {:?}", module_id))?;
+                        .ok_or_else(|| format_err!("unable to find module {:?}", module_id))?;
 
                     let func_addr = func_map
                         .get(&func_id)
-                        .ok_or(format_err!("unable to find function {:?}", func_id))?;
+                        .ok_or_else(|| format_err!("unable to find function {:?}", func_id))?;
 
                     Instruction::Call(*func_addr as u16)
                 }
@@ -130,28 +130,36 @@ impl Compiler {
 
         let entry_func_map = module_map
             .get(defaults::BIN_ENTRY_POINT_MODULE)
-            .ok_or(format_err!(
-                "unable to find entry module {:?}",
-                defaults::BIN_ENTRY_POINT_MODULE
-            ))?;
+            .ok_or_else(|| {
+                format_err!(
+                    "unable to find entry module {:?}",
+                    defaults::BIN_ENTRY_POINT_MODULE
+                )
+            })?;
 
         let entry_func_addr = entry_func_map
             .get(defaults::ENTRY_POINT_FUNC)
-            .ok_or(format_err!(
-                "unable to find entry function {:?}",
-                defaults::ENTRY_POINT_FUNC
-            ))?;
+            .ok_or_else(|| {
+                format_err!(
+                    "unable to find entry function {:?}",
+                    defaults::ENTRY_POINT_FUNC
+                )
+            })?;
 
-        Ok(Program {
-            target_version: self.config.program.target_version.clone(),
-            system_id: self.config.program.system_id.clone(),
-            instructions: final_instructions,
-            mem_pages: self.config.program.mem_pages.clone(),
-            entry_point: *entry_func_addr as u16,
-        })
+        let program_builder = ProgramBuilder::new(self.config.program.system_id.clone())
+            .instructions(final_instructions)
+            .entry_point(*entry_func_addr as u16);
+
+        let program = if let Some(pages) = self.config.program.mem_pages {
+            program_builder.mem_pages(pages).gen()
+        } else {
+            program_builder.gen()
+        };
+
+        Ok(program)
     }
 
-    fn to_meta_instr(&mut self, instrs: Vec<Expr>, module: &Module) -> Result<Vec<MetaInstr>> {
+    fn to_meta_instr(&self, instrs: Vec<Expr>, module: &Module) -> Result<Vec<MetaInstr>> {
         let mut meta_vec = Vec::new();
 
         for instr in instrs {
@@ -231,7 +239,7 @@ impl Compiler {
             let meta_instr = match instr {
                 Expr::PushConstU8(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&module.constants, id)?;
+                        let value = Compiler::find_const(&module.constants, &id)?;
 
                         MetaInstr::ActualInstr(Instruction::PushConstU8(value as u8))
                     }
@@ -239,7 +247,7 @@ impl Compiler {
                 },
                 Expr::PushConstU16(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&module.constants, id)?;
+                        let value = Compiler::find_const(&module.constants, &id)?;
 
                         MetaInstr::ActualInstr(Instruction::PushConstU16(value as u16))
                     }
@@ -249,7 +257,7 @@ impl Compiler {
                 },
                 Expr::PushConstI8(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&module.constants, id)?;
+                        let value = Compiler::find_const(&module.constants, &id)?;
 
                         MetaInstr::ActualInstr(Instruction::PushConstI8(value as i8))
                     }
@@ -257,7 +265,7 @@ impl Compiler {
                 },
                 Expr::PushConstI16(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&module.constants, id)?;
+                        let value = Compiler::find_const(&module.constants, &id)?;
 
                         MetaInstr::ActualInstr(Instruction::PushConstI16(value as i16))
                     }
@@ -267,7 +275,7 @@ impl Compiler {
                 },
                 Expr::Load(integer_type, arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&module.constants, id)?;
+                        let value = Compiler::find_const(&module.constants, &id)?;
 
                         MetaInstr::ActualInstr(Instruction::Load(integer_type, value as u16))
                     }
@@ -277,7 +285,7 @@ impl Compiler {
                 },
                 Expr::Store(integer_type, arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&module.constants, id)?;
+                        let value = Compiler::find_const(&module.constants, &id)?;
 
                         MetaInstr::ActualInstr(Instruction::Store(integer_type, value as u16))
                     }
@@ -291,13 +299,15 @@ impl Compiler {
                     let real_signal = if signal == "halt" {
                         0
                     } else {
-                        ensure!(self.config.signals.len() > 0, "no signals were given");
+                        ensure!(!self.config.signals.is_empty(), "no signals were given");
 
-                        *self.config.signals.get(&signal).ok_or(format_err!(
-                            "undefined signal {:?}. Available signals are {:?}",
-                            signal,
-                            self.config.signals.keys().cloned().collect::<Vec<_>>()
-                        ))?
+                        *self.config.signals.get(&signal).ok_or_else(|| {
+                            format_err!(
+                                "undefined signal {:?}. Available signals are {:?}",
+                                signal,
+                                self.config.signals.keys().cloned().collect::<Vec<_>>()
+                            )
+                        })?
                     };
 
                     MetaInstr::ActualInstr(Instruction::SysCall(real_signal))
@@ -343,7 +353,7 @@ impl Compiler {
                 }
                 Expr::Alloc(arg) => match arg {
                     Argument::Constant(id) => {
-                        let value = Compiler::find_const(&module.constants, id)?;
+                        let value = Compiler::find_const(&module.constants, &id)?;
 
                         MetaInstr::ActualInstr(Instruction::Alloc(value as u16))
                     }
@@ -359,11 +369,11 @@ impl Compiler {
         Ok(meta_vec)
     }
 
-    fn find_const(consts: &Vec<Const>, id: String) -> Result<i32> {
+    fn find_const(consts: &[Const], id: &str) -> Result<i32> {
         let cons = consts
             .iter()
             .find(|con| con.id == id)
-            .ok_or(format_err!("unable to find constant: {:?}", id))?;
+            .ok_or_else(|| format_err!("unable to find constant: {:?}", id))?;
 
         Ok(cons.value)
     }
