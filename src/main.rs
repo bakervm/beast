@@ -152,16 +152,6 @@ mod tests {
     use std::process::Command;
 
     #[test]
-    fn basic_compilation() {
-        Command::main_binary()
-            .unwrap()
-            .current_dir("test")
-            .arg("build")
-            .assert()
-            .success();
-    }
-
-    #[test]
     fn init_compilation() {
         let tmp_dir = tempfile::tempdir().expect("unable to create temporary directory");
 
