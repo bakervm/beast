@@ -46,7 +46,7 @@ mod tests {
 
     #[test]
     fn load_config() {
-        const FILE_NAME: &str = "test/Beast.toml";
+        const FILE_NAME: &str = "src/templates/Beast.toml";
 
         let config = Config::from_file(FILE_NAME).unwrap();
 
