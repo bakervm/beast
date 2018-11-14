@@ -63,7 +63,7 @@ enum Opt {
 
 fn main() {
     run().unwrap_or_else(|e| {
-        eprintln!("{}", e);
+        eprintln!("Error: {}", e);
         ::std::process::exit(1);
     });
 }
