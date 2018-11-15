@@ -27,10 +27,7 @@ impl AstGen {
         let mut include = config.compilation.include_dirs.clone();
         include.push(defaults::INCLUDE_PATH.into());
 
-        AstGen {
-            config: config,
-            include: include,
-        }
+        AstGen { config, include }
     }
 
     pub fn gen(root_module: String, config: Config) -> Result<Ast> {
@@ -92,7 +89,7 @@ impl AstGen {
             }
         }
 
-        Ok(Ast { modules: modules })
+        Ok(Ast { modules })
     }
 
     fn module(&mut self, module_id: String) -> Result<Module> {

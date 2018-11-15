@@ -57,11 +57,9 @@ impl Compiler {
                     .iter()
                     .find(|exp| exp.func_origin_id == func.id);
 
-                let mut func_id = if let Some(exp) = exported_func {
-                    exp.func_alias_id.clone()
-                } else {
-                    format!("{}{}", PRIVATE_PREFIX, func.id)
-                };
+                let mut func_id = exported_func
+                    .map(|exp| exp.func_alias_id.clone())
+                    .unwrap_or_else(|| format!("{}{}", PRIVATE_PREFIX, func.id));
 
                 if module_name == root_module && func.id == defaults::ENTRY_POINT_FUNC {
                     func_id = defaults::ENTRY_POINT_FUNC.into();
@@ -164,13 +162,11 @@ impl Compiler {
 
         for instr in instrs {
             match instr.clone() {
-                Expr::While(whl) => {
-                    let While {
-                        cond,
-                        type_t,
-                        exprs,
-                    } = whl.clone();
-
+                Expr::While(While {
+                    cond,
+                    type_t,
+                    exprs,
+                }) => {
                     meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(type_t)));
 
                     let mut meta_instrs = self.to_meta_instr(exprs, module)?;
@@ -193,14 +189,12 @@ impl Compiler {
                     )));
                     continue;
                 }
-                Expr::If(whether) => {
-                    let If {
-                        cond,
-                        type_t,
-                        exprs,
-                        else_exprs,
-                    } = whether.clone();
-
+                Expr::If(If {
+                    cond,
+                    type_t,
+                    exprs,
+                    else_exprs,
+                }) => {
                     meta_vec.push(MetaInstr::ActualInstr(Instruction::Cmp(type_t)));
 
                     let mut if_meta_instrs = self.to_meta_instr(exprs, module)?;
@@ -317,6 +311,7 @@ impl Compiler {
                         .imports
                         .iter()
                         .find(|import| import.func_alias_id == func_id);
+
                     if let Some(ref import) = opt_import {
                         MetaInstr::Call {
                             func_id: import.func_origin_id.clone(),
@@ -327,20 +322,19 @@ impl Compiler {
                             .funcs
                             .iter()
                             .find(|other_func| other_func.id == func_id);
+
                         if let Some(ref local) = opt_local {
                             let exported_func = module
                                 .exports
                                 .iter()
                                 .find(|exp| exp.func_origin_id == local.id);
 
-                            let func_id = if let Some(exp) = exported_func {
-                                exp.func_alias_id.clone()
-                            } else {
-                                format!("{}{}", PRIVATE_PREFIX, local.id)
-                            };
+                            let func_id = exported_func
+                                .map(|exp| exp.func_alias_id.clone())
+                                .unwrap_or_else(|| format!("{}{}", PRIVATE_PREFIX, local.id));
 
                             MetaInstr::Call {
-                                func_id: func_id,
+                                func_id,
                                 module_id: module.id.clone(),
                             }
                         } else {
