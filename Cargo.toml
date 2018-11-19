@@ -6,6 +6,14 @@ authors = ["Julian Laubstein <contact@julianlaubstein.de>"]
 license = "MIT"
 repository = "https://github.com/bakervm/beast"
 
+[[bin]]
+name = "beastc"
+path = "beastc/main.rs"
+
+[[bin]]
+name = "tame"
+path = "tame/main.rs"
+
 [dependencies]
 pest = "1"
 pest_derive = "1"

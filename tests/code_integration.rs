@@ -17,7 +17,7 @@ fn compile_all_code_examples() {
         .collect();
 
     for code_dir in code_dirs {
-        Command::main_binary()
+        Command::cargo_bin("tame")
             .unwrap()
             .current_dir(&code_dir)
             .arg("build")
