@@ -1,11 +1,36 @@
 use ast::*;
 use ast_gen::AstGen;
-use config::Config;
 use defaults;
 use melon::{typedef::*, Instruction, Program, ProgramBuilder};
 use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::str::FromStr;
 
 const PRIVATE_PREFIX: &str = "PRIVATE__";
+
+pub struct SignalPair {
+    pub key: String,
+    pub value: u16,
+}
+
+impl FromStr for SignalPair {
+    type Err = ::failure::Error;
+
+    fn from_str(s: &str) -> std::result::Result<SignalPair, Self::Err> {
+        let main_split: Vec<_> = s.split('=').map(|e| e.trim()).collect();
+
+        ensure!(
+            main_split.len() == 2,
+            "invalid key-value pair. Expected 'identifier=number'"
+        );
+
+        Ok(SignalPair {
+            key: main_split[0].into(),
+            value: main_split[1].parse()?,
+        })
+    }
+}
 
 #[derive(Debug)]
 enum MetaInstr {
@@ -15,33 +40,60 @@ enum MetaInstr {
 
 pub struct Compiler {
     ast: Ast,
-    config: Config,
+    signals: Vec<SignalPair>,
 }
 
 impl Compiler {
-    fn new(config: Config, ast: Ast) -> Compiler {
-        Compiler { ast, config }
+    fn new(ast: Ast, signals: Vec<SignalPair>) -> Compiler {
+        Compiler { ast, signals }
     }
 
     pub fn compile(
-        root_module: &str,
-        config: Config,
+        input: &PathBuf,
+        system_id: String,
+        mem_pages: Option<u8>,
+        signals: Vec<SignalPair>,
+        include: Vec<PathBuf>,
         emit_func_map: bool,
         emit_ast: bool,
     ) -> Result<Program> {
-        let ast = AstGen::gen(root_module.to_string(), config.clone())?;
+        ensure!(input.is_file(), "input is not a file");
+
+        let input_parent = input
+            .parent()
+            .to_owned()
+            .ok_or_else(|| format_err!("unable to find parent directory of input file"))?;
+
+        let mut include = include;
+        include.push(input_parent.to_path_buf());
+
+        let root_module_vec: Vec<_> = input
+            .file_name()
+            .ok_or_else(|| format_err!("unable to retrieve file name"))?
+            .to_str()
+            .ok_or_else(|| format_err!("unable to convert file name"))?
+            .split('.')
+            .collect();
+
+        let root_module = root_module_vec.first().cloned().unwrap();
+
+        let ast = AstGen::gen(include, root_module.to_string())?;
 
         if emit_ast {
             println!("{:#?}", ast);
         }
 
-        let mut compiler = Compiler::new(config, ast);
-        let program = compiler.build(&root_module, emit_func_map)?;
+        let program = Compiler::new(ast, signals).build(emit_func_map, system_id, mem_pages)?;
 
         Ok(program)
     }
 
-    fn build(&mut self, root_module: &str, emit_func_map: bool) -> Result<Program> {
+    fn build(
+        &mut self,
+        emit_func_map: bool,
+        system_id: String,
+        mem_pages: Option<u8>,
+    ) -> Result<Program> {
         let modules = self.ast.modules.clone();
 
         let mut meta_module_map = BTreeMap::new();
@@ -61,7 +113,7 @@ impl Compiler {
                     .map(|exp| exp.func_alias_id.clone())
                     .unwrap_or_else(|| format!("{}{}", PRIVATE_PREFIX, func.id));
 
-                if module_name == root_module && func.id == defaults::ENTRY_POINT_FUNC {
+                if module_name == self.ast.root_module && func.id == defaults::ENTRY_POINT_FUNC {
                     func_id = defaults::ENTRY_POINT_FUNC.into();
                     meta_instr.push(MetaInstr::ActualInstr(Instruction::SysCall(0)));
                 } else {
@@ -126,14 +178,9 @@ impl Compiler {
             final_instructions.push(instr);
         }
 
-        let entry_func_map = module_map
-            .get(defaults::BIN_ENTRY_POINT_MODULE)
-            .ok_or_else(|| {
-                format_err!(
-                    "unable to find entry module {:?}",
-                    defaults::BIN_ENTRY_POINT_MODULE
-                )
-            })?;
+        let entry_func_map = module_map.get(&self.ast.root_module).ok_or_else(|| {
+            format_err!("unable to find entry module {:?}", &self.ast.root_module)
+        })?;
 
         let entry_func_addr = entry_func_map
             .get(defaults::ENTRY_POINT_FUNC)
@@ -144,11 +191,11 @@ impl Compiler {
                 )
             })?;
 
-        let program_builder = ProgramBuilder::new(self.config.program.system_id.clone())
+        let program_builder = ProgramBuilder::new(system_id)
             .instructions(final_instructions)
             .entry_point(*entry_func_addr as u16);
 
-        let program = if let Some(pages) = self.config.program.mem_pages {
+        let program = if let Some(pages) = mem_pages {
             program_builder.mem_pages(pages).gen()
         } else {
             program_builder.gen()
@@ -293,15 +340,22 @@ impl Compiler {
                     let real_signal = if signal == "halt" {
                         0
                     } else {
-                        ensure!(!self.config.signals.is_empty(), "no signals were given");
+                        ensure!(!self.signals.is_empty(), "no signals available");
 
-                        *self.config.signals.get(&signal).ok_or_else(|| {
-                            format_err!(
-                                "undefined signal {:?}. Available signals are {:?}",
-                                signal,
-                                self.config.signals.keys().cloned().collect::<Vec<_>>()
-                            )
-                        })?
+                        self.signals
+                            .iter()
+                            .find(|item| item.key == signal)
+                            .map(|pair| pair.value)
+                            .ok_or_else(|| {
+                                format_err!(
+                                    "undefined signal {:?}. Available signals are {:?}",
+                                    signal,
+                                    self.signals
+                                        .iter()
+                                        .map(|e| e.key.clone())
+                                        .collect::<Vec<_>>()
+                                )
+                            })?
                     };
 
                     MetaInstr::ActualInstr(Instruction::SysCall(real_signal))

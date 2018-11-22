@@ -6,6 +6,10 @@ authors = ["Julian Laubstein <contact@julianlaubstein.de>"]
 license = "MIT"
 repository = "https://github.com/bakervm/beast"
 
+[lib]
+name = "beastc"
+path = "beastc/lib.rs"
+
 [[bin]]
 name = "beastc"
 path = "beastc/main.rs"

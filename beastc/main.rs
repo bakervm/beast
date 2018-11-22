@@ -1,26 +1,15 @@
 #[macro_use]
 extern crate failure;
-extern crate melon;
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
+extern crate beastc;
 extern crate flate2;
+extern crate melon;
 extern crate rmp_serde as rmps;
 extern crate structopt;
 extern crate toml;
 
-mod ast;
-mod ast_gen;
-mod compiler;
-mod config;
 mod defaults;
-mod parser;
 
-use compiler::Compiler;
-use config::Config;
+use beastc::compiler::{Compiler, SignalPair};
 use melon::typedef::Result;
 use std::{
     fs::{self, File},
@@ -30,115 +19,71 @@ use std::{
 };
 use structopt::StructOpt;
 
-const TARGET_DIRECTORY: &str = "target";
-const CONFIG_FILE_NAME: &str = "Beast.toml";
-
 #[derive(StructOpt)]
-enum Opt {
+struct Opt {
+    #[structopt(parse(from_os_str))]
+    input: PathBuf,
+    system_id: String,
+    #[structopt(long, short)]
+    signal: Vec<SignalPair>,
+    #[structopt(long, short)]
+    mem_pages: Option<u8>,
     #[structopt(
-        name = "new",
-        about = "initialize a new Beast project at the given directory"
+        short = "o",
+        help = "specify output destination",
+        parse(from_os_str)
     )]
-    New {
-        #[structopt(
-            help = "the path to the target project directory",
-            parse(from_os_str)
-        )]
-        path: PathBuf,
-    },
-    #[structopt(name = "build", about = "builds the current project")]
-    Build {
-        #[structopt(
-            long = "emit-func-map",
-            help = "emits the corresponding function-map for the current build"
-        )]
-        emit_func_map: bool,
-        #[structopt(
-            long = "emit-ast",
-            help = "emits the corresponding AST for the current build"
-        )]
-        emit_ast: bool,
-    },
+    output: Option<PathBuf>,
+    #[structopt(
+        short = "I",
+        help = "specify directories to search in for included files",
+        parse(from_os_str)
+    )]
+    include: Vec<PathBuf>,
+    #[structopt(
+        long = "emit-func-map",
+        help = "emits the corresponding function-map for the current build"
+    )]
+    emit_func_map: bool,
+    #[structopt(
+        long = "emit-ast",
+        help = "emits the corresponding AST for the current build"
+    )]
+    emit_ast: bool,
 }
 
 fn main() {
-    run().unwrap_or_else(|e| {
+    let opt = Opt::from_args();
+
+    build(opt).unwrap_or_else(|e| {
         eprintln!("Error: {}", e);
         ::std::process::exit(1);
     });
 }
 
-fn run() -> Result<()> {
-    let opt = Opt::from_args();
-
-    match opt {
-        Opt::Build {
-            emit_func_map,
-            emit_ast,
-        } => build(emit_func_map, emit_ast)?,
-        Opt::New { path } => new(&path)?,
-    }
-
-    Ok(())
-}
-
-fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
-    let config_file = PathBuf::from(CONFIG_FILE_NAME);
-
-    ensure!(
-        config_file.exists(),
-        "unable to find {} in current directory",
-        CONFIG_FILE_NAME
-    );
-
-    let config = Config::from_file(config_file)?;
-
-    let compilation = config.compilation.clone();
-
-    let entry_point = compilation
-        .entry_point
-        .unwrap_or_else(|| defaults::BIN_ENTRY_POINT_MODULE.into());
-
-    let name = config.program.name.clone();
-
+fn build(opt: Opt) -> Result<()> {
     let now = Instant::now();
 
-    let program = Compiler::compile(&entry_point, config, emit_func_map, emit_ast)?;
+    let program = Compiler::compile(
+        &opt.input,
+        opt.system_id,
+        opt.mem_pages,
+        opt.signal,
+        opt.include,
+        opt.emit_func_map,
+        opt.emit_ast,
+    )?;
 
     println!(
         "Compilation finished. Took {} seconds",
         now.elapsed().as_secs()
     );
 
-    let output_file = PathBuf::from(name).with_extension(melon::typedef::ROM_FILE_EXTENSION);
-    let output_path = PathBuf::from(TARGET_DIRECTORY).join(output_file);
+    let output_file = opt.output.unwrap_or_else(|| {
+        PathBuf::from(defaults::ROM_FILE_NAME).with_extension(melon::typedef::ROM_FILE_EXTENSION)
+    });
 
-    fs::create_dir_all(TARGET_DIRECTORY)?;
-
-    program.save_as(output_path)?;
-
-    Ok(())
-}
-
-fn new(path: &PathBuf) -> Result<()> {
-    ensure!(!path.exists(), "directory already exists");
-
-    fs::create_dir_all(path.join(TARGET_DIRECTORY))?;
-    fs::create_dir_all(path.join(defaults::INCLUDE_PATH))?;
-
-    let config_data = include_bytes!("templates/Beast.toml");
-    let mut config_file = File::create(path.join(CONFIG_FILE_NAME))?;
-    config_file.write_all(&config_data[..])?;
-
-    let main_file_data = include_bytes!("templates/main.bst");
-    let mut main_file_file = File::create(path.join(defaults::INCLUDE_PATH).join("main.bst"))?;
-    main_file_file.write_all(&main_file_data[..])?;
-
-    let gitignore_data = include_bytes!("templates/.gitignore");
-    let mut gitignore = File::create(path.join(".gitignore"))?;
-    gitignore.write_all(&gitignore_data[..])?;
-
-    println!("New project successfully initialized at {:?}", path);
+    program.save_as(output_file)?;
 
     Ok(())
 }
@@ -149,24 +94,30 @@ mod tests {
     extern crate tempfile;
 
     use self::assert_cmd::prelude::*;
-    use std::process::Command;
+    use std::{path::PathBuf, process::Command};
+
+    fn beastc() -> Command {
+        Command::cargo_bin("beastc").unwrap()
+    }
 
     #[test]
     fn init_compilation() {
         let tmp_dir = tempfile::tempdir().expect("unable to create temporary directory");
 
-        Command::main_binary()
-            .unwrap()
-            .current_dir(tmp_dir.path())
-            .args(&["new", "test_project"])
-            .assert()
+        beastc()
+            .args(&[
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("templates")
+                    .join("main.bst")
+                    .to_str()
+                    .unwrap(),
+                "some_system_id",
+            ]).args(&[
+                "-o",
+                tmp_dir.path().join("some_output.rom").to_str().unwrap(),
+            ]).assert()
             .success();
 
-        Command::main_binary()
-            .unwrap()
-            .current_dir(tmp_dir.path().join("test_project"))
-            .arg("build")
-            .assert()
-            .success();
+        // TODO: Write tests for new compiler frontend
     }
 }

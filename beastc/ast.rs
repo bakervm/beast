@@ -88,5 +88,6 @@ pub struct Module {
 
 #[derive(Debug, Clone)]
 pub struct Ast {
+    pub root_module: String,
     pub modules: BTreeMap<String, Module>,
 }

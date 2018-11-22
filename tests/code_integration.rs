@@ -7,7 +7,7 @@ use std::{path::PathBuf, process::Command};
 
 #[test]
 fn compile_all_code_examples() {
-    let code_projects_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("code");
+    let code_projects_dir = PathBuf::from("code");
 
     let code_dirs: Vec<_> = code_projects_dir
         .read_dir()

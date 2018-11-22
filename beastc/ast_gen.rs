@@ -1,6 +1,4 @@
 use ast::*;
-use config::Config;
-use defaults;
 use failure::ResultExt;
 use melon::{typedef::*, Instruction, IntegerType, Register};
 use parser::{BeastParser, Rule};
@@ -18,21 +16,16 @@ const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
 
 #[derive(Clone)]
 pub struct AstGen {
-    config: Config,
-    include: Vec<String>,
+    include: Vec<PathBuf>,
 }
 
 impl AstGen {
-    fn new(config: Config) -> AstGen {
-        let mut include = config.compilation.include_dirs.clone();
-        include.push(defaults::INCLUDE_PATH.into());
-
-        AstGen { config, include }
+    fn new(include: Vec<PathBuf>) -> AstGen {
+        AstGen { include }
     }
 
-    pub fn gen(root_module: String, config: Config) -> Result<Ast> {
-        let mut compiler = AstGen::new(config);
-        let ast = compiler.ast(root_module)?;
+    pub fn gen(include: Vec<PathBuf>, root_module: String) -> Result<Ast> {
+        let ast = AstGen::new(include).ast(root_module)?;
 
         Ok(ast)
     }
@@ -43,14 +36,14 @@ impl AstGen {
 
         instructor_sender.send(root_module.clone())?;
 
-        let compiler = self.clone();
+        let generator = self.clone();
         let instructor_sender = instructor_sender.clone();
         thread::spawn(move || {
             while let Ok(module_name) = instructor_receiver.recv() {
-                let mut compiler = compiler.clone();
+                let mut generator = generator.clone();
                 let module_sender = module_sender.clone();
                 thread::spawn(move || {
-                    let module = compiler.module(module_name.clone());
+                    let module = generator.module(module_name.clone());
 
                     module_sender.send((module_name, module)).unwrap();
                 });
@@ -59,7 +52,7 @@ impl AstGen {
 
         let mut modules = BTreeMap::new();
         let mut requested_modules = BTreeSet::new();
-        requested_modules.insert(root_module);
+        requested_modules.insert(root_module.clone());
 
         loop {
             match module_receiver.try_recv() {
@@ -89,7 +82,10 @@ impl AstGen {
             }
         }
 
-        Ok(Ast { modules })
+        Ok(Ast {
+            modules,
+            root_module,
+        })
     }
 
     fn module(&mut self, module_id: String) -> Result<Module> {
@@ -101,12 +97,8 @@ impl AstGen {
 
         file.read_to_string(&mut buf)?;
 
-        let parsing_result = BeastParser::parse(Rule::file, &buf);
-
-        let parsed_file = match parsing_result {
-            Err(err) => bail!("{}", err),
-            Ok(res) => res,
-        };
+        let parsed_file =
+            BeastParser::parse(Rule::file, &buf).map_err(|err| format_err!("{}", err))?;
 
         let mut imports = Vec::new();
         let mut exports = Vec::new();
