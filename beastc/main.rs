@@ -1,22 +1,12 @@
-#[macro_use]
-extern crate failure;
-extern crate beastc;
-extern crate flate2;
+extern crate beast;
 extern crate melon;
-extern crate rmp_serde as rmps;
 extern crate structopt;
-extern crate toml;
 
 mod defaults;
 
-use beastc::compiler::{Compiler, SignalPair};
+use beast::compiler::{Compiler, SignalPair};
 use melon::typedef::Result;
-use std::{
-    fs::{self, File},
-    io::Write,
-    path::PathBuf,
-    time::Instant,
-};
+use std::{path::PathBuf, time::Instant};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]

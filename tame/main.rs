@@ -4,16 +4,14 @@ extern crate melon;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate beastc;
-extern crate flate2;
-extern crate rmp_serde as rmps;
+extern crate beast;
 extern crate structopt;
 extern crate toml;
 
 mod config;
 mod defaults;
 
-use beastc::compiler::{Compiler, SignalPair};
+use beast::compiler::{Compiler, SignalPair};
 use config::Config;
 use melon::typedef::*;
 use std::{
