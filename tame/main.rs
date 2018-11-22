@@ -15,6 +15,7 @@ use beast::compiler::{Compiler, SignalPair};
 use config::Config;
 use melon::typedef::*;
 use std::{
+    env,
     fs::{self, File},
     io::Write,
     path::PathBuf,
@@ -39,18 +40,7 @@ enum Opt {
         path: PathBuf,
     },
     #[structopt(name = "build", about = "builds the current project")]
-    Build {
-        #[structopt(
-            long = "emit-func-map",
-            help = "emits the corresponding function-map for the current build"
-        )]
-        emit_func_map: bool,
-        #[structopt(
-            long = "emit-ast",
-            help = "emits the corresponding AST for the current build"
-        )]
-        emit_ast: bool,
-    },
+    Build,
 }
 
 fn main() {
@@ -64,17 +54,14 @@ fn run() -> Result<()> {
     let opt = Opt::from_args();
 
     match opt {
-        Opt::Build {
-            emit_func_map,
-            emit_ast,
-        } => build(emit_func_map, emit_ast)?,
+        Opt::Build => build()?,
         Opt::New { path } => new(&path)?,
     }
 
     Ok(())
 }
 
-fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
+fn build() -> Result<()> {
     let config_file = PathBuf::from(CONFIG_FILE_NAME);
 
     ensure!(
@@ -96,7 +83,8 @@ fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
     let now = Instant::now();
 
     let program = Compiler::compile(
-        &PathBuf::from("src").join("main.bst"),
+        env::current_dir()?.join(defaults::INCLUDE_PATH),
+        entry_point,
         config.program.system_id.clone(),
         config.program.mem_pages,
         config
@@ -107,8 +95,6 @@ fn build(emit_func_map: bool, emit_ast: bool) -> Result<()> {
                 value: *value,
             }).collect(),
         config.compilation.include_dirs.clone(),
-        emit_func_map,
-        emit_ast,
     )?;
 
     println!(

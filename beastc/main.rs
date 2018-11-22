@@ -6,13 +6,12 @@ mod defaults;
 
 use beast::compiler::{Compiler, SignalPair};
 use melon::typedef::Result;
-use std::{path::PathBuf, time::Instant};
+use std::{env, path::PathBuf, time::Instant};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
 struct Opt {
-    #[structopt(parse(from_os_str))]
-    input: PathBuf,
+    module: String,
     system_id: String,
     #[structopt(long, short)]
     signal: Vec<SignalPair>,
@@ -30,16 +29,6 @@ struct Opt {
         parse(from_os_str)
     )]
     include: Vec<PathBuf>,
-    #[structopt(
-        long = "emit-func-map",
-        help = "emits the corresponding function-map for the current build"
-    )]
-    emit_func_map: bool,
-    #[structopt(
-        long = "emit-ast",
-        help = "emits the corresponding AST for the current build"
-    )]
-    emit_ast: bool,
 }
 
 fn main() {
@@ -55,13 +44,12 @@ fn build(opt: Opt) -> Result<()> {
     let now = Instant::now();
 
     let program = Compiler::compile(
-        &opt.input,
+        env::current_dir()?,
+        opt.module,
         opt.system_id,
         opt.mem_pages,
         opt.signal,
         opt.include,
-        opt.emit_func_map,
-        opt.emit_ast,
     )?;
 
     println!(
@@ -95,14 +83,9 @@ mod tests {
         let tmp_dir = tempfile::tempdir().expect("unable to create temporary directory");
 
         beastc()
+            .current_dir(PathBuf::from("templates"))
+            .args(&["main", "some_system_id"])
             .args(&[
-                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("templates")
-                    .join("main.bst")
-                    .to_str()
-                    .unwrap(),
-                "some_system_id",
-            ]).args(&[
                 "-o",
                 tmp_dir.path().join("some_output.rom").to_str().unwrap(),
             ]).assert()

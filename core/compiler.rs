@@ -3,9 +3,7 @@ use ast_gen::AstGen;
 use defaults;
 use melon::{typedef::*, Instruction, Program, ProgramBuilder};
 use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 const PRIVATE_PREFIX: &str = "PRIVATE__";
 
@@ -49,51 +47,24 @@ impl Compiler {
     }
 
     pub fn compile(
-        input: &PathBuf,
+        root_dir: PathBuf,
+        module: String,
         system_id: String,
         mem_pages: Option<u8>,
         signals: Vec<SignalPair>,
         include: Vec<PathBuf>,
-        emit_func_map: bool,
-        emit_ast: bool,
     ) -> Result<Program> {
-        ensure!(input.is_file(), "input is not a file");
-
-        let input_parent = input
-            .parent()
-            .to_owned()
-            .ok_or_else(|| format_err!("unable to find parent directory of input file"))?;
-
         let mut include = include;
-        include.push(input_parent.to_path_buf());
+        include.push(root_dir);
 
-        let root_module_vec: Vec<_> = input
-            .file_name()
-            .ok_or_else(|| format_err!("unable to retrieve file name"))?
-            .to_str()
-            .ok_or_else(|| format_err!("unable to convert file name"))?
-            .split('.')
-            .collect();
+        let ast = AstGen::gen(include, module)?;
 
-        let root_module = root_module_vec.first().cloned().unwrap();
-
-        let ast = AstGen::gen(include, root_module.to_string())?;
-
-        if emit_ast {
-            println!("{:#?}", ast);
-        }
-
-        let program = Compiler::new(ast, signals).build(emit_func_map, system_id, mem_pages)?;
+        let program = Compiler::new(ast, signals).build(system_id, mem_pages)?;
 
         Ok(program)
     }
 
-    fn build(
-        &mut self,
-        emit_func_map: bool,
-        system_id: String,
-        mem_pages: Option<u8>,
-    ) -> Result<Program> {
+    fn build(&mut self, system_id: String, mem_pages: Option<u8>) -> Result<Program> {
         let modules = self.ast.modules.clone();
 
         let mut meta_module_map = BTreeMap::new();
@@ -145,10 +116,6 @@ impl Compiler {
             };
 
             module_map.insert(meta_module_name, final_func_map);
-        }
-
-        if emit_func_map {
-            println!("{:#?}", module_map);
         }
 
         ensure!(
