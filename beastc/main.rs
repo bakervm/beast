@@ -10,6 +10,10 @@ use std::{env, path::PathBuf, time::Instant};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
+#[structopt(
+    name = "beastc",
+    about = "The compiler for the Beast high level assembly language"
+)]
 struct Opt {
     module: String,
     system_id: String,

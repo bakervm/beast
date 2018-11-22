@@ -27,6 +27,10 @@ const TARGET_DIRECTORY: &str = "target";
 const CONFIG_FILE_NAME: &str = "Tame.toml";
 
 #[derive(StructOpt)]
+#[structopt(
+    name = "tame",
+    about = "A build tool for the Beast high level assembly language"
+)]
 enum Opt {
     #[structopt(
         name = "new",
