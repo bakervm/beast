@@ -1,4 +1,5 @@
 use melon::typedef::*;
+use std::path::PathBuf;
 use std::{collections::BTreeMap, fs::File, io::Read, path::Path};
 use toml;
 
@@ -15,7 +16,7 @@ pub struct Compilation {
     pub entry_point: Option<String>,
     /// The paths to look in for source files to include
     #[serde(default, rename = "include")]
-    pub include_dirs: Vec<String>,
+    pub include_dirs: Vec<PathBuf>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -46,10 +47,8 @@ mod tests {
 
     #[test]
     fn load_config() {
-        const FILE_NAME: &str = "src/templates/Beast.toml";
+        const FILE_NAME: &str = "templates/Tame.toml";
 
-        let config = Config::from_file(FILE_NAME).unwrap();
-
-        println!("{:#?}", config);
+        Config::from_file(FILE_NAME).unwrap();
     }
 }

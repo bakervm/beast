@@ -1,4 +1,4 @@
-const _GRAMMAR: &str = include_str!("beast.pest");
+const _GRAMMAR: &str = include_str!("../src/beast.pest");
 
 #[derive(Parser)]
 #[grammar = "beast.pest"]
@@ -11,7 +11,7 @@ mod tests {
 
     #[test]
     fn test_data() {
-        let input = include_str!("templates/main.bst");
+        let input = include_str!("../templates/main.bst");
 
         BeastParser::parse(Rule::file, input).unwrap();
     }

@@ -1,10 +1,22 @@
 [package]
 name = "beast"
 version = "1.0.0-alpha.2"
-description = "A build tool for the Beast high level assembly language"
+description = "The Beast high level assembly language"
 authors = ["Julian Laubstein <contact@julianlaubstein.de>"]
 license = "MIT"
 repository = "https://github.com/bakervm/beast"
+
+[lib]
+name = "beast"
+path = "core/lib.rs"
+
+[[bin]]
+name = "beastc"
+path = "beastc/main.rs"
+
+[[bin]]
+name = "tame"
+path = "tame/main.rs"
 
 [dependencies]
 pest = "1"
