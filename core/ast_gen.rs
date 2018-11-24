@@ -12,7 +12,7 @@ use std::{
     thread,
 };
 
-const SOURCE_FILE_EXTENSIONS: [&str; 2] = ["beast", "bst"];
+const SOURCE_FILE_EXTENSION: &str = "bst";
 
 #[derive(Clone)]
 pub struct AstGen {
@@ -509,19 +509,13 @@ impl AstGen {
     fn discover_module(&mut self, module: &str) -> Result<PathBuf> {
         let base_path: PathBuf = module.split('.').collect();
 
-        let beast_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[0]);
-
-        let bst_module_name = base_path.with_extension(SOURCE_FILE_EXTENSIONS[1]);
+        let beast_module_name = base_path.with_extension(SOURCE_FILE_EXTENSION);
 
         let found_module = self
             .include
             .iter()
-            .map(|include| PathBuf::from(include).join(beast_module_name.clone()))
-            .chain(
-                self.include
-                    .iter()
-                    .map(|include| PathBuf::from(include).join(bst_module_name.clone())),
-            ).find(|include| include.exists());
+            .map(|include| include.join(&beast_module_name))
+            .find(|include| include.exists());
 
         if let Some(module_id) = found_module {
             return Ok(module_id);
