@@ -65,11 +65,9 @@ impl Compiler {
     }
 
     fn build(&mut self, system_id: String, mem_pages: Option<u8>) -> Result<Program> {
-        let modules = self.ast.modules.clone();
-
         let mut meta_module_map = BTreeMap::new();
 
-        for (module_name, module) in modules {
+        for (module_name, module) in &self.ast.modules {
             let mut meta_func_map = BTreeMap::new();
 
             for func in &module.funcs {
@@ -84,7 +82,7 @@ impl Compiler {
                     .map(|exp| exp.func_alias_id.clone())
                     .unwrap_or_else(|| format!("{}{}", PRIVATE_PREFIX, func.id));
 
-                if module_name == self.ast.root_module && func.id == defaults::ENTRY_POINT_FUNC {
+                if module_name == &self.ast.root_module && func.id == defaults::ENTRY_POINT_FUNC {
                     func_id = defaults::ENTRY_POINT_FUNC.into();
                     meta_instr.push(MetaInstr::ActualInstr(Instruction::SysCall(0)));
                 } else {
